@@ -255,14 +255,41 @@ export default function App() {
     setGenerating(false);
   };
 
-  const handleCopy = (text, setter) => { navigator.clipboard.writeText(text).then(() => { setter(true); setTimeout(() => setter(false), 2000); }); };
+  const handleCopy = (text, setter) => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => { setter(true); setTimeout(() => setter(false), 2000); }).catch(() => {
+        fallbackCopy(text, setter);
+      });
+    } else {
+      fallbackCopy(text, setter);
+    }
+  };
+  const fallbackCopy = (text, setter) => {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      setter(true);
+      setTimeout(() => setter(false), 2000);
+    } catch (e) {
+      setError("Gagal copy: " + e.message);
+    }
+  };
 
   const handleDownloadPptx = async () => {
     setGeneratingPptx(true);
+    setError("");
     try {
+      if (!result) { setError("Belum ada konten. Generate dulu sebelum download PPTX."); setGeneratingPptx(false); return; }
       await generatePPTX(data, result);
     } catch (err) {
-      setError("Gagal generate PPTX: " + err.message);
+      console.error("PPTX Error:", err);
+      setError("Gagal generate PPTX: " + (err.message || String(err)));
     }
     setGeneratingPptx(false);
   };
