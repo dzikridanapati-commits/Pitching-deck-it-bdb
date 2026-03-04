@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { generatePPTX } from "./pptxGenerator.js";
 
 const API_KEY = typeof import.meta !== "undefined" && import.meta.env ? (import.meta.env.VITE_ANTHROPIC_API_KEY || "") : "";
 
@@ -178,6 +179,7 @@ export default function App() {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [copiedPrompt, setCopiedPrompt] = useState(false);
+  const [generatingPptx, setGeneratingPptx] = useState(false);
   const resultRef = useRef(null);
   const fileInputRefs = useRef({});
 
@@ -250,6 +252,16 @@ export default function App() {
   };
 
   const handleCopy = (text, setter) => { navigator.clipboard.writeText(text).then(() => { setter(true); setTimeout(() => setter(false), 2000); }); };
+
+  const handleDownloadPptx = async () => {
+    setGeneratingPptx(true);
+    try {
+      await generatePPTX(data, result);
+    } catch (err) {
+      setError("Gagal generate PPTX: " + err.message);
+    }
+    setGeneratingPptx(false);
+  };
   const goNext = () => { if (step < visibleSteps.length - 1) setStep(step + 1); };
   const goBack = () => { if (step > 0) setStep(step - 1); };
   useEffect(() => { if (result && resultRef.current) resultRef.current.scrollIntoView({ behavior: "smooth" }); }, [result]);
@@ -560,11 +572,47 @@ export default function App() {
                 <h2 style={{ fontSize: "22px", fontWeight: 800, margin: "0", color: "#111", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Konten Pitching Deck</h2>
                 <p style={{ color: "#888", fontSize: "13px", margin: "4px 0 0 0" }}>{data.namaPerusahaan} {"\u2014"} {JASA_OPTIONS.find((j) => j.id === data.jasa)?.title}{files.length > 0 ? ` \u2022 ${files.length} file dianalisis` : ""}</p>
               </div>
-              <button onClick={() => handleCopy(result, setCopied)} style={{ padding: "10px 20px", background: copied ? "#111" : "#fff", color: copied ? "#F3C11B" : "#333", border: "1px solid #DDD", borderRadius: "10px", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{copied ? "\u2713 Copied!" : "Copy All"}</button>
             </div>
-            <div style={{ background: "#fff", borderRadius: "16px", padding: "28px", border: "1px solid #EBEBEB", fontSize: "14px", lineHeight: "1.8", whiteSpace: "pre-wrap", color: "#222", maxHeight: "70vh", overflow: "auto", boxShadow: "0 1px 6px rgba(0,0,0,0.04)" }}>{result}</div>
-            <div style={{ marginTop: "16px", padding: "16px 18px", background: "rgba(243,193,27,0.06)", borderRadius: "12px", border: "1px solid rgba(243,193,27,0.15)", fontSize: "13px", color: "#666", lineHeight: "1.6" }}>
-              <strong style={{ color: "#111" }}>Next step:</strong> Copy konten {"\u2192"} Buka Google Slides template BDB {"\u2192"} Paste per slide. Atau paste ke Claude dan minta "buatkan PPTX dari konten ini dengan design system BDB".
+
+            {/* PRIMARY: Download PPTX */}
+            <div style={{ background: "#111", borderRadius: "16px", padding: "24px", marginBottom: "16px", border: "2px solid #F3C11B" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "14px" }}>
+                <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "#F3C11B", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", flexShrink: 0 }}>{"\u{1F4CA}"}</div>
+                <div>
+                  <div style={{ color: "#fff", fontSize: "16px", fontWeight: 700, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Download Pitching Deck</div>
+                  <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "12px", marginTop: "2px" }}>File PPTX dengan design system BDB (hitam/kuning/Plus Jakarta Sans)</div>
+                </div>
+              </div>
+              <button onClick={handleDownloadPptx} disabled={generatingPptx}
+                style={{
+                  width: "100%", padding: "14px", background: generatingPptx ? "#333" : "#F3C11B",
+                  color: generatingPptx ? "#888" : "#111", border: "none", borderRadius: "10px",
+                  fontSize: "15px", fontWeight: 800, cursor: generatingPptx ? "not-allowed" : "pointer",
+                  fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "0.3px",
+                  transition: "all 0.2s",
+                }}>
+                {generatingPptx ? "\u23F3 Generating PPTX..." : "\u2B07 Download .PPTX"}
+              </button>
+            </div>
+
+            {/* SECONDARY: Copy text + view */}
+            <div style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
+              <button onClick={() => handleCopy(result, setCopied)}
+                style={{ flex: 1, padding: "12px", background: copied ? "#111" : "#fff", color: copied ? "#F3C11B" : "#333", border: "1px solid #DDD", borderRadius: "10px", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", transition: "all 0.2s" }}>
+                {copied ? "\u2713 Copied!" : "\u{1F4CB} Copy Konten Teks"}
+              </button>
+            </div>
+
+            {/* Collapsible text result */}
+            <details style={{ marginBottom: "16px" }}>
+              <summary style={{ cursor: "pointer", fontSize: "13px", fontWeight: 600, color: "#888", fontFamily: "'Plus Jakarta Sans', sans-serif", padding: "8px 0" }}>
+                Lihat konten teks lengkap
+              </summary>
+              <div style={{ background: "#fff", borderRadius: "12px", padding: "24px", border: "1px solid #EBEBEB", fontSize: "13px", lineHeight: "1.8", whiteSpace: "pre-wrap", color: "#222", maxHeight: "50vh", overflow: "auto", marginTop: "8px" }}>{result}</div>
+            </details>
+
+            <div style={{ padding: "14px 16px", background: "rgba(243,193,27,0.06)", borderRadius: "12px", border: "1px solid rgba(243,193,27,0.15)", fontSize: "13px", color: "#666", lineHeight: "1.6" }}>
+              <strong style={{ color: "#111" }}>Tips:</strong> Download PPTX {"\u2192"} buka di Google Slides atau PowerPoint {"\u2192"} sesuaikan visual & tambahkan gambar. File sudah menggunakan design system BDB.
             </div>
           </div>
         )}
