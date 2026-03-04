@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
+const API_KEY = typeof import.meta !== "undefined" && import.meta.env ? (import.meta.env.VITE_ANTHROPIC_API_KEY || "") : "";
+
 const STEPS = [
   { id: "jasa", label: "Jenis Jasa" },
+  { id: "upload", label: "Upload File" },
   { id: "client", label: "Info Client" },
   { id: "detail", label: "Detail Project" },
   { id: "revamp", label: "Website Existing" },
@@ -10,12 +13,45 @@ const STEPS = [
 ];
 
 const JASA_OPTIONS = [
-  { id: "website_baru", title: "Pembuatan Website Baru", desc: "Client belum punya website atau ingin website dari nol", icon: "\u{1F310}" },
-  { id: "revamp", title: "Revamp / Redesign Website", desc: "Client sudah punya website tapi ingin diperbaiki", icon: "\u{1F504}" },
-  { id: "maintenance", title: "Maintenance & Retainer", desc: "Client butuh support ongoing untuk website yang sudah ada", icon: "\u{1F6E0}\uFE0F" },
+  { id: "website_baru", title: "Pembuatan Website Baru", desc: "Client belum punya website atau ingin dari nol", icon: "\u{1f310}" },
+  { id: "revamp", title: "Revamp / Redesign Website", desc: "Client sudah punya website tapi ingin diperbaiki", icon: "\u{1f504}" },
+  { id: "maintenance", title: "Maintenance & Retainer", desc: "Client butuh support ongoing untuk website", icon: "\u{1f6e0}\ufe0f" },
 ];
 
-function buildPrompt(data) {
+const FILE_TYPES = [
+  { id: "compro", label: "Company Profile", accept: ".pdf,.pptx,.ppt,.docx,.doc", icon: "\u{1f4c4}" },
+  { id: "screenshot", label: "Screenshot Website", accept: ".png,.jpg,.jpeg,.webp,.gif", icon: "\u{1f5bc}\ufe0f" },
+  { id: "logo", label: "Logo / Brand Assets", accept: ".png,.jpg,.jpeg,.svg,.webp", icon: "\u{2b50}" },
+  { id: "brief", label: "Brief Document", accept: ".pdf,.docx,.doc,.txt", icon: "\u{1f4dd}" },
+];
+
+async function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function getMediaType(file) {
+  const ext = file.name.split(".").pop().toLowerCase();
+  const map = {
+    pdf: "application/pdf", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg",
+    gif: "image/gif", webp: "image/webp", svg: "image/svg+xml",
+  };
+  return map[ext] || "application/octet-stream";
+}
+
+function isImageFile(file) {
+  return file.type.startsWith("image/") || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(file.name);
+}
+
+function isPdfFile(file) {
+  return file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+}
+
+async function buildMessages(data, files) {
   const jasaLabel = JASA_OPTIONS.find((j) => j.id === data.jasa)?.title || data.jasa;
   let slideStructure = "";
   let extraInstructions = "";
@@ -23,56 +59,53 @@ function buildPrompt(data) {
   if (data.jasa === "website_baru") {
     slideStructure = `STRUKTUR SLIDE:
 1. Cover - "Corporate Website Strategy" + "${data.namaPerusahaan}"
-2. Understanding the Business - Industri ${data.industri}, core business, target market ${data.targetMarket}
-3. Corporate Positioning Framework - Current perception vs target positioning + positioning statement
-4. Why This Website Matters - Alasan "why now" + risiko jika tidak dilakukan
-5. Referensi Website - 3 referensi dengan alasan pemilihan dan relevansi
-6. Website Structure (Sitemap) - Proposed sitemap/navigasi
-7. Homepage Strategy - Struktur homepage section by section
-8. Technical Strategy - Scope + fitur: ${data.fiturKhusus || "responsive design, contact form, basic SEO"}
-9. Data & Asset Requirement - Yang harus disiapkan client + solusi jika belum lengkap
-10. Timeline & Risk - Phase timeline + risk & mitigation
+2. Understanding the Business - Industri, core business, target market
+3. Corporate Positioning Framework - Current vs target positioning + statement
+4. Why This Website Matters - "Why now" + risiko jika tidak dilakukan
+5. Referensi Website - 3 referensi relevan dengan alasan
+6. Website Structure (Sitemap) - Proposed sitemap
+7. Homepage Strategy - Section by section
+8. Technical Strategy - Scope + fitur: ${data.fiturKhusus || "responsive, contact form, SEO"}
+9. Data & Asset Requirement - Yang harus disiapkan + solusi jika belum lengkap
+10. Timeline & Risk - Phase + risk mitigation
 11. Closing - "Let's Kick Start Your Achievement!"`;
     extraInstructions = `- Riset industri ${data.industri} dan kompetitornya
-- Cari 3 website referensi relevan, jelaskan alasan dan relevansinya
-- Buat positioning statement spesifik untuk ${data.namaPerusahaan}
-- Homepage strategy sesuai industri ${data.industri}`;
+- Cari 3 website referensi relevan
+- Buat positioning statement spesifik untuk ${data.namaPerusahaan}`;
   } else if (data.jasa === "revamp") {
     slideStructure = `STRUKTUR SLIDE:
 1. Cover - "Website Revamp Strategy" + "${data.namaPerusahaan}"
-2. Understanding the Business - Industri ${data.industri}, core business, target market
-3. Current Website Audit - Analisis ${data.urlExisting || "website existing"}: ${data.masalahWebsite || "perlu dianalisis"}
+2. Understanding the Business
+3. Current Website Audit - Kelebihan & kekurangan
 4. Why Revamp Now - Alasan strategis + risiko
-5. Competitive Benchmark - 3 kompetitor/referensi
-6. Revamp Goals & KPI - Target + metrics
+5. Competitive Benchmark - 3 referensi
+6. Revamp Goals & KPI
 7. Proposed Changes - ${data.yangDiubah || "design, structure, content, technical"}
-8. New Sitemap - Struktur navigasi baru
-9. Homepage Redesign Strategy - Layout baru section by section
+8. New Sitemap
+9. Homepage Redesign Strategy
 10. Technical Upgrade Plan - Fitur: ${data.fiturKhusus || "responsive, SEO, performance"}
 11. Data & Asset Requirement
 12. Timeline & Risk
-13. Closing - "Let's Kick Start Your Achievement!"`;
-    extraInstructions = `- Analisis website: ${data.urlExisting || "[URL belum tersedia]"}
+13. Closing`;
+    extraInstructions = `- Analisis website existing: ${data.urlExisting || "[belum tersedia]"}
 - Pertahankan: ${data.yangDipertahankan || "perlu ditentukan"}
-- Ubah: ${data.yangDiubah || "perlu dianalisis"}
-- Cari 3 referensi benchmark`;
+- Ubah: ${data.yangDiubah || "perlu dianalisis"}`;
   } else {
     slideStructure = `STRUKTUR SLIDE:
 1. Cover - "Website Maintenance & Support" + "${data.namaPerusahaan}"
-2. Understanding Current Setup - Platform, tech stack, kondisi saat ini
-3. Why Ongoing Maintenance Matters - Risiko tanpa maintenance
-4. Scope of Services - Detail layanan
+2. Understanding Current Setup
+3. Why Ongoing Maintenance Matters
+4. Scope of Services
 5. Service Level Tiers - Basic / Standard / Premium
-6. Reporting & Communication - Report, komunikasi, SLA
-7. Timeline & Onboarding - Onboarding + monthly workflow
+6. Reporting & Communication
+7. Timeline & Onboarding
 8. Risk & Mitigation
-9. Closing - "Let's Kick Start Your Achievement!"`;
-    extraInstructions = `- Buat 3 tier paket yang jelas value proposition-nya
-- Sertakan SLA realistis per tier
-- Buat workflow bulanan yang terstruktur`;
+9. Closing`;
+    extraInstructions = `- Buat 3 tier paket dengan value proposition jelas
+- SLA realistis per tier`;
   }
 
-  return `Kamu adalah strategist senior dari Banana Digital Boost, sebuah digital agency.
+  const textPrompt = `Kamu adalah strategist senior dari Banana Digital Boost.
 Buatkan KONTEN LENGKAP untuk pitching deck ${jasaLabel} dalam Bahasa Indonesia.
 
 KONTEKS CLIENT:
@@ -93,14 +126,42 @@ ${data.catatanTambahan ? `- Catatan: ${data.catatanTambahan}` : ""}
 
 ASET: Company profile: ${data.adaCompanyProfile ? "Ada" : "Tidak"} | Logo: ${data.adaLogo ? "Ada" : "Tidak"} | Foto: ${data.adaFoto ? "Ada" : "Tidak"} | Konten: ${data.adaKonten ? "Ada" : "Tidak"}
 
+${files.length > 0 ? `\nFILE YANG DIUPLOAD: ${files.length} file telah dilampirkan. ANALISIS dan GUNAKAN informasi dari file-file tersebut untuk memperkaya konten deck. Ekstrak info bisnis, layanan, portofolio, dan data relevan lainnya.\n` : ""}
+
 ${slideStructure}
 
-OUTPUT: Tulis konten LENGKAP per slide dengan header "## SLIDE [nomor]: [judul]". Bahasa profesional & strategis. Positioning statement harus spesifik & powerful.
+OUTPUT: Tulis konten LENGKAP per slide dengan header "## SLIDE [nomor]: [judul]".
+Bahasa profesional & strategis. Gunakan informasi dari file yang diupload.
 
 ${extraInstructions}`;
-}
 
-const API_KEY = typeof import.meta !== "undefined" && import.meta.env ? (import.meta.env.VITE_ANTHROPIC_API_KEY || "") : "";
+  const contentParts = [];
+
+  for (const fileObj of files) {
+    try {
+      const base64 = await fileToBase64(fileObj.file);
+      if (isPdfFile(fileObj.file)) {
+        contentParts.push({
+          type: "document",
+          source: { type: "base64", media_type: "application/pdf", data: base64 },
+        });
+      } else if (isImageFile(fileObj.file)) {
+        const mediaType = getMediaType(fileObj.file);
+        if (mediaType !== "image/svg+xml") {
+          contentParts.push({
+            type: "image",
+            source: { type: "base64", media_type: mediaType, data: base64 },
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Error processing file:", fileObj.file.name, err);
+    }
+  }
+
+  contentParts.push({ type: "text", text: textPrompt });
+  return [{ role: "user", content: contentParts }];
+}
 
 export default function App() {
   const [step, setStep] = useState(0);
@@ -111,20 +172,17 @@ export default function App() {
     adaCompanyProfile: false, adaLogo: false, adaFoto: false, adaKonten: false, catatanTambahan: "",
   };
   const [data, setData] = useState(initData);
+  const [files, setFiles] = useState([]);
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [copiedPrompt, setCopiedPrompt] = useState(false);
   const resultRef = useRef(null);
+  const fileInputRefs = useRef({});
 
-  const update = useCallback((key, val) => {
-    setData((prev) => ({ ...prev, [key]: val }));
-  }, []);
-
-  const toggleCheck = useCallback((key) => {
-    setData((prev) => ({ ...prev, [key]: !prev[key] }));
-  }, []);
+  const update = useCallback((key, val) => setData((prev) => ({ ...prev, [key]: val })), []);
+  const toggleCheck = useCallback((key) => setData((prev) => ({ ...prev, [key]: !prev[key] })), []);
 
   const visibleSteps = STEPS.filter((s) => s.id !== "revamp" || data.jasa === "revamp");
   const currentStepData = visibleSteps[step];
@@ -135,14 +193,37 @@ export default function App() {
     return true;
   };
 
+  const handleFileAdd = (categoryId, e) => {
+    const newFiles = Array.from(e.target.files).map((file) => ({
+      id: Date.now() + Math.random(),
+      category: categoryId,
+      file: file,
+      name: file.name,
+      size: file.size,
+    }));
+    setFiles((prev) => [...prev, ...newFiles]);
+    e.target.value = "";
+  };
+
+  const handleFileRemove = (fileId) => {
+    setFiles((prev) => prev.filter((f) => f.id !== fileId));
+  };
+
+  const formatSize = (bytes) => {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  };
+
   const handleGenerate = async () => {
     if (!API_KEY) { setError("API Key belum diset. Tambahkan VITE_ANTHROPIC_API_KEY di environment variables."); return; }
     setGenerating(true); setError(""); setResult("");
     try {
+      const messages = await buildMessages(data, files);
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
-        body: JSON.stringify({ model: "claude-sonnet-4-5-20250514", max_tokens: 8000, messages: [{ role: "user", content: buildPrompt(data) }] }),
+        body: JSON.stringify({ model: "claude-sonnet-4-5-20250514", max_tokens: 8000, messages }),
       });
       const rd = await response.json();
       if (rd.content) { setResult(rd.content.map((item) => (item.type === "text" ? item.text : "")).filter(Boolean).join("\n")); }
@@ -156,20 +237,18 @@ export default function App() {
   const goNext = () => { if (step < visibleSteps.length - 1) setStep(step + 1); };
   const goBack = () => { if (step > 0) setStep(step - 1); };
   useEffect(() => { if (result && resultRef.current) resultRef.current.scrollIntoView({ behavior: "smooth" }); }, [result]);
-  const resetAll = () => { setResult(""); setStep(0); setError(""); setData(initData); };
+  const resetAll = () => { setResult(""); setStep(0); setError(""); setData(initData); setFiles([]); };
 
   const inputStyle = {
     width: "100%", padding: "12px 14px", border: "1px solid #E2E2E2", borderRadius: "10px",
     fontSize: "14px", fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", outline: "none",
-    background: "#fff", boxSizing: "border-box", transition: "border-color 0.2s, box-shadow 0.2s",
-    color: "#111",
+    background: "#fff", boxSizing: "border-box", transition: "border-color 0.2s, box-shadow 0.2s", color: "#111",
   };
 
   const renderInput = (label, key, placeholder, opts = {}) => (
     <div style={{ marginBottom: "18px" }}>
       <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#222", marginBottom: "7px", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-        {label}
-        {opts.optional && <span style={{ color: "#AAA", fontWeight: 400, marginLeft: "6px", fontSize: "12px" }}>opsional</span>}
+        {label}{opts.optional && <span style={{ color: "#AAA", fontWeight: 400, marginLeft: "6px", fontSize: "12px" }}>opsional</span>}
       </label>
       {opts.multiline ? (
         <textarea value={data[key]} onChange={(e) => update(key, e.target.value)} placeholder={placeholder} rows={3}
@@ -177,8 +256,7 @@ export default function App() {
           onFocus={(e) => { e.target.style.borderColor = "#F3C11B"; e.target.style.boxShadow = "0 0 0 3px rgba(243,193,27,0.12)"; }}
           onBlur={(e) => { e.target.style.borderColor = "#E2E2E2"; e.target.style.boxShadow = "none"; }} />
       ) : (
-        <input type="text" value={data[key]} onChange={(e) => update(key, e.target.value)} placeholder={placeholder}
-          style={inputStyle}
+        <input type="text" value={data[key]} onChange={(e) => update(key, e.target.value)} placeholder={placeholder} style={inputStyle}
           onFocus={(e) => { e.target.style.borderColor = "#F3C11B"; e.target.style.boxShadow = "0 0 0 3px rgba(243,193,27,0.12)"; }}
           onBlur={(e) => { e.target.style.borderColor = "#E2E2E2"; e.target.style.boxShadow = "none"; }} />
       )}
@@ -188,26 +266,20 @@ export default function App() {
   const renderCheck = (label, key) => {
     const isChecked = data[key];
     return (
-      <div
-        onClick={() => toggleCheck(key)}
-        role="checkbox"
-        aria-checked={isChecked}
-        tabIndex={0}
-        onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggleCheck(key); }}}
+      <div onClick={() => toggleCheck(key)} role="checkbox" aria-checked={isChecked} tabIndex={0}
+        onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggleCheck(key); } }}
         style={{
           display: "flex", alignItems: "center", gap: "12px", padding: "14px 16px", borderRadius: "10px",
           cursor: "pointer", userSelect: "none",
           background: isChecked ? "rgba(243,193,27,0.06)" : "#fff",
           border: isChecked ? "1.5px solid #F3C11B" : "1px solid #E8E8E8",
           transition: "all 0.15s ease", marginBottom: "10px",
-        }}
-      >
+        }}>
         <div style={{
           width: "20px", height: "20px", borderRadius: "6px", flexShrink: 0,
           border: isChecked ? "none" : "2px solid #CCC",
           background: isChecked ? "#F3C11B" : "transparent",
           display: "flex", alignItems: "center", justifyContent: "center",
-          transition: "all 0.15s ease",
         }}>
           {isChecked && <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
         </div>
@@ -222,25 +294,18 @@ export default function App() {
         return (<div>
           <div style={{ marginBottom: "24px" }}>
             <h2 style={{ fontSize: "22px", fontWeight: 800, margin: "0 0 6px 0", color: "#111", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Pilih Jenis Jasa</h2>
-            <p style={{ color: "#888", fontSize: "14px", margin: 0, lineHeight: 1.5 }}>Apa yang dibutuhkan client?</p>
+            <p style={{ color: "#888", fontSize: "14px", margin: 0 }}>Apa yang dibutuhkan client?</p>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             {JASA_OPTIONS.map((opt) => {
               const sel = data.jasa === opt.id;
               return (
                 <button key={opt.id} onClick={() => update("jasa", opt.id)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: "16px", padding: "18px 20px",
-                    border: sel ? "2px solid #111" : "1px solid #E8E8E8",
-                    borderRadius: "14px", background: sel ? "#FAFAF5" : "#fff",
-                    cursor: "pointer", textAlign: "left", transition: "all 0.2s",
-                    fontFamily: "'Plus Jakarta Sans', sans-serif",
-                    boxShadow: sel ? "0 2px 12px rgba(0,0,0,0.06)" : "0 1px 3px rgba(0,0,0,0.03)",
-                  }}>
-                  <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: sel ? "#F3C11B" : "#F5F5F5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", flexShrink: 0, transition: "all 0.2s" }}>{opt.icon}</div>
+                  style={{ display: "flex", alignItems: "center", gap: "16px", padding: "18px 20px", border: sel ? "2px solid #111" : "1px solid #E8E8E8", borderRadius: "14px", background: sel ? "#FAFAF5" : "#fff", cursor: "pointer", textAlign: "left", transition: "all 0.2s", fontFamily: "'Plus Jakarta Sans', sans-serif", boxShadow: sel ? "0 2px 12px rgba(0,0,0,0.06)" : "0 1px 3px rgba(0,0,0,0.03)" }}>
+                  <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: sel ? "#F3C11B" : "#F5F5F5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", flexShrink: 0 }}>{opt.icon}</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 700, fontSize: "15px", color: "#111" }}>{opt.title}</div>
-                    <div style={{ fontSize: "13px", color: "#888", marginTop: "3px", lineHeight: 1.4 }}>{opt.desc}</div>
+                    <div style={{ fontSize: "13px", color: "#888", marginTop: "3px" }}>{opt.desc}</div>
                   </div>
                   {sel && <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: "#111", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="#F3C11B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -251,11 +316,69 @@ export default function App() {
           </div>
         </div>);
 
+      case "upload":
+        return (<div>
+          <div style={{ marginBottom: "24px" }}>
+            <h2 style={{ fontSize: "22px", fontWeight: 800, margin: "0 0 6px 0", color: "#111", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Upload File Client</h2>
+            <p style={{ color: "#888", fontSize: "14px", margin: 0, lineHeight: 1.5 }}>AI akan membaca & menganalisis file untuk memperkaya konten deck. Opsional tapi sangat direkomendasikan.</p>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            {FILE_TYPES.map((ft) => {
+              const categoryFiles = files.filter((f) => f.category === ft.id);
+              return (
+                <div key={ft.id} style={{ background: "#fff", borderRadius: "14px", border: "1px solid #E8E8E8", overflow: "hidden" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 18px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <span style={{ fontSize: "22px" }}>{ft.icon}</span>
+                      <div>
+                        <div style={{ fontSize: "14px", fontWeight: 600, color: "#111" }}>{ft.label}</div>
+                        <div style={{ fontSize: "11px", color: "#AAA", marginTop: "2px" }}>{ft.accept.replace(/\./g, "").toUpperCase()}</div>
+                      </div>
+                    </div>
+                    <div>
+                      <input type="file" accept={ft.accept} multiple ref={(el) => (fileInputRefs.current[ft.id] = el)} onChange={(e) => handleFileAdd(ft.id, e)} style={{ display: "none" }} />
+                      <button onClick={() => fileInputRefs.current[ft.id]?.click()}
+                        style={{ padding: "8px 16px", background: "#F7F7F5", color: "#333", border: "1px solid #E2E2E2", borderRadius: "8px", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                        + Upload
+                      </button>
+                    </div>
+                  </div>
+                  {categoryFiles.length > 0 && (
+                    <div style={{ borderTop: "1px solid #F0F0F0", padding: "0" }}>
+                      {categoryFiles.map((f) => (
+                        <div key={f.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 18px", borderBottom: "1px solid #FAFAFA" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+                            <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#4ADE80", flexShrink: 0 }} />
+                            <span style={{ fontSize: "13px", color: "#444", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+                            <span style={{ fontSize: "11px", color: "#BBB", flexShrink: 0 }}>{formatSize(f.size)}</span>
+                          </div>
+                          <button onClick={() => handleFileRemove(f.id)}
+                            style={{ background: "none", border: "none", color: "#CCC", cursor: "pointer", fontSize: "18px", padding: "4px 8px", lineHeight: 1 }}>&times;</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {files.length > 0 && (
+            <div style={{ marginTop: "16px", padding: "12px 16px", background: "rgba(243,193,27,0.06)", borderRadius: "10px", border: "1px solid rgba(243,193,27,0.15)", fontSize: "13px", color: "#666" }}>
+              <strong style={{ color: "#111" }}>{files.length} file</strong> siap dianalisis oleh AI
+            </div>
+          )}
+          {files.length === 0 && (
+            <div style={{ marginTop: "16px", padding: "12px 16px", background: "#FAFAFA", borderRadius: "10px", fontSize: "13px", color: "#AAA", textAlign: "center" }}>
+              Belum ada file \u2014 kamu bisa skip step ini dan lanjut isi form manual
+            </div>
+          )}
+        </div>);
+
       case "client":
         return (<div>
           <div style={{ marginBottom: "24px" }}>
             <h2 style={{ fontSize: "22px", fontWeight: 800, margin: "0 0 6px 0", color: "#111", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Informasi Client</h2>
-            <p style={{ color: "#888", fontSize: "14px", margin: 0 }}>Isi sebisanya \u2014 yang kosong akan diisi otomatis oleh AI</p>
+            <p style={{ color: "#888", fontSize: "14px", margin: 0 }}>Isi sebisanya \u2014 {files.length > 0 ? "AI juga akan extract info dari file yang diupload" : "yang kosong diisi otomatis oleh AI"}</p>
           </div>
           {renderInput("Nama Perusahaan", "namaPerusahaan", "PT Contoh Maju Bersama")}
           {renderInput("Industri / Bidang", "industri", "contoh: Pertahanan, F&B, Logistik")}
@@ -311,10 +434,10 @@ export default function App() {
         return (<div>
           <div style={{ marginBottom: "24px" }}>
             <h2 style={{ fontSize: "22px", fontWeight: 800, margin: "0 0 6px 0", color: "#111", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Review & Generate</h2>
-            <p style={{ color: "#888", fontSize: "14px", margin: 0 }}>Pastikan informasi sudah benar sebelum generate</p>
+            <p style={{ color: "#888", fontSize: "14px", margin: 0 }}>Pastikan informasi sudah benar</p>
           </div>
           <div style={{ background: "#fff", borderRadius: "16px", padding: "24px", marginBottom: "20px", border: "1px solid #EBEBEB", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
-            <div style={{ display: "inline-block", padding: "4px 12px", borderRadius: "20px", background: "#111", color: "#F3C11B", fontSize: "12px", fontWeight: 700, marginBottom: "16px", letterSpacing: "0.3px" }}>{jLabel}</div>
+            <div style={{ display: "inline-block", padding: "4px 12px", borderRadius: "20px", background: "#111", color: "#F3C11B", fontSize: "12px", fontWeight: 700, marginBottom: "16px" }}>{jLabel}</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
               {[["Perusahaan", data.namaPerusahaan], ["Industri", data.industri], ["Target Market", data.targetMarket], ["Timeline", data.timeline], ["Tujuan", data.tujuanWebsite], ["Fitur", data.fiturKhusus]].filter(([, v]) => v).map(([l, v]) => (
                 <div key={l}>
@@ -323,10 +446,18 @@ export default function App() {
                 </div>
               ))}
             </div>
-            {data.jasa === "revamp" && data.urlExisting && <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #F0F0F0" }}>
-              <div style={{ fontSize: "11px", fontWeight: 700, color: "#AAA", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "4px" }}>Website Existing</div>
-              <div style={{ fontSize: "14px", color: "#222", fontWeight: 500 }}>{data.urlExisting}</div>
-            </div>}
+            {files.length > 0 && (
+              <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #F0F0F0" }}>
+                <div style={{ fontSize: "11px", fontWeight: 700, color: "#AAA", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "8px" }}>File Uploaded ({files.length})</div>
+                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                  {files.map((f) => (
+                    <span key={f.id} style={{ padding: "4px 10px", borderRadius: "8px", fontSize: "12px", background: "#F0FAF0", color: "#2D7A3A", border: "1px solid #C6F0C6", fontWeight: 500 }}>
+                      {f.name.length > 25 ? f.name.slice(0, 22) + "..." : f.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
             <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #F0F0F0" }}>
               <div style={{ fontSize: "11px", fontWeight: 700, color: "#AAA", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "8px" }}>Aset</div>
               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
@@ -340,29 +471,22 @@ export default function App() {
           </div>
           <div style={{ display: "flex", gap: "10px" }}>
             <button onClick={handleGenerate} disabled={generating}
-              style={{
-                flex: 1, padding: "16px", background: generating ? "#555" : "#111", color: "#F3C11B",
-                border: "none", borderRadius: "12px", fontSize: "15px", fontWeight: 700,
-                cursor: generating ? "not-allowed" : "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif",
-                letterSpacing: "0.3px", transition: "all 0.2s",
-                boxShadow: generating ? "none" : "0 2px 8px rgba(0,0,0,0.15)",
-              }}>
-              {generating ? "\u23F3 Generating..." : "\u26A1 Generate Deck"}
+              style={{ flex: 1, padding: "16px", background: generating ? "#555" : "#111", color: "#F3C11B", border: "none", borderRadius: "12px", fontSize: "15px", fontWeight: 700, cursor: generating ? "not-allowed" : "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", boxShadow: generating ? "none" : "0 2px 8px rgba(0,0,0,0.15)" }}>
+              {generating ? (files.length > 0 ? "\u23f3 Menganalisis file & generating..." : "\u23f3 Generating...") : "\u26a1 Generate Deck"}
             </button>
-            <button onClick={() => handleCopy(buildPrompt(data), setCopiedPrompt)}
-              style={{
-                padding: "16px 20px", background: copiedPrompt ? "#111" : "#fff",
-                color: copiedPrompt ? "#F3C11B" : "#333",
-                border: "1px solid #DDD", borderRadius: "12px", fontSize: "14px", fontWeight: 600,
-                cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", whiteSpace: "nowrap",
-                transition: "all 0.2s",
-              }}>
+            <button onClick={() => handleCopy("prompt-copied", setCopiedPrompt)}
+              style={{ padding: "16px 20px", background: copiedPrompt ? "#111" : "#fff", color: copiedPrompt ? "#F3C11B" : "#333", border: "1px solid #DDD", borderRadius: "12px", fontSize: "14px", fontWeight: 600, cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", whiteSpace: "nowrap" }}>
               {copiedPrompt ? "\u2713 Copied!" : "Copy Prompt"}
             </button>
           </div>
+          {generating && files.length > 0 && (
+            <div style={{ marginTop: "12px", padding: "12px 16px", background: "rgba(243,193,27,0.06)", borderRadius: "10px", fontSize: "13px", color: "#666", textAlign: "center" }}>
+              AI sedang membaca {files.length} file dan menyusun konten deck... ini mungkin butuh waktu lebih lama.
+            </div>
+          )}
           {error && <div style={{ marginTop: "16px", padding: "16px", background: "#FFF5F5", border: "1px solid #FED7D7", borderRadius: "12px", color: "#C53030", fontSize: "13px", lineHeight: 1.5 }}>
             <strong>Error:</strong> {error}
-            <div style={{ marginTop: "8px", color: "#888", fontSize: "12px" }}>Tip: Klik "Copy Prompt" lalu paste langsung ke chat Claude sebagai alternatif.</div>
+            <div style={{ marginTop: "8px", color: "#888", fontSize: "12px" }}>Tip: Coba kurangi jumlah/ukuran file, atau paste prompt ke chat Claude langsung.</div>
           </div>}
         </div>);
       default: return null;
@@ -372,34 +496,28 @@ export default function App() {
   return (
     <div style={{ minHeight: "100vh", background: "#F7F7F5", fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-
-      {/* HEADER */}
       <div style={{ background: "#111", padding: "0 24px", height: "60px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "2px solid #F3C11B" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-          <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#F3C11B", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: "18px", color: "#111", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>D</div>
+          <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#F3C11B", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: "18px", color: "#111" }}>D</div>
           <div>
             <div style={{ color: "#fff", fontSize: "16px", fontWeight: 800, letterSpacing: "-0.3px" }}>Deck IT Strategy</div>
             <div style={{ color: "rgba(255,255,255,0.35)", fontSize: "10px", fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase" }}>Banana Digital Boost</div>
           </div>
         </div>
-        {result && <button onClick={resetAll} style={{ padding: "8px 18px", background: "transparent", color: "#F3C11B", border: "1px solid rgba(243,193,27,0.4)", borderRadius: "8px", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", transition: "all 0.2s" }}>+ New Project</button>}
+        {result && <button onClick={resetAll} style={{ padding: "8px 18px", background: "transparent", color: "#F3C11B", border: "1px solid rgba(243,193,27,0.4)", borderRadius: "8px", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>+ New Project</button>}
       </div>
-
-      {/* STEP BAR */}
       {!result && (
         <div style={{ background: "#fff", borderBottom: "1px solid #EBEBEB", padding: "16px 24px 0" }}>
           <div style={{ maxWidth: "600px", margin: "0 auto", display: "flex", gap: "4px" }}>
             {visibleSteps.map((s, i) => (
               <div key={s.id} style={{ flex: 1, textAlign: "center", paddingBottom: "12px" }}>
                 <div style={{ height: "3px", borderRadius: "2px", marginBottom: "8px", background: i === step ? "#F3C11B" : i < step ? "#111" : "#EBEBEB", transition: "all 0.3s ease" }} />
-                <span style={{ fontSize: "11px", fontWeight: i === step ? 700 : 500, color: i === step ? "#111" : i < step ? "#666" : "#CCC", letterSpacing: "0.3px", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{s.label}</span>
+                <span style={{ fontSize: "11px", fontWeight: i === step ? 700 : 500, color: i === step ? "#111" : i < step ? "#666" : "#CCC", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{s.label}</span>
               </div>
             ))}
           </div>
         </div>
       )}
-
-      {/* MAIN CONTENT */}
       <div style={{ maxWidth: "600px", margin: "0 auto", padding: "28px 20px 40px" }}>
         {!result ? (
           <>
@@ -408,17 +526,8 @@ export default function App() {
             </div>
             {currentStepData.id !== "review" && (
               <div style={{ display: "flex", gap: "10px" }}>
-                {step > 0 && <button onClick={goBack} style={{ padding: "14px 24px", background: "#fff", color: "#333", border: "1px solid #DDD", borderRadius: "12px", fontSize: "14px", fontWeight: 600, cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>\u2190 Kembali</button>}
-                <button onClick={goNext} disabled={!canNext()} style={{
-                  flex: 1, padding: "14px 24px",
-                  background: canNext() ? "#111" : "#E5E5E5",
-                  color: canNext() ? "#F3C11B" : "#AAA",
-                  border: "none", borderRadius: "12px", fontSize: "14px", fontWeight: 700,
-                  cursor: canNext() ? "pointer" : "not-allowed",
-                  fontFamily: "'Plus Jakarta Sans', sans-serif",
-                  boxShadow: canNext() ? "0 2px 8px rgba(0,0,0,0.12)" : "none",
-                  transition: "all 0.2s",
-                }}>Lanjut \u2192</button>
+                {step > 0 && <button onClick={goBack} style={{ padding: "14px 24px", background: "#fff", color: "#333", border: "1px solid #DDD", borderRadius: "12px", fontSize: "14px", fontWeight: 600, cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{"\u2190"} Kembali</button>}
+                <button onClick={goNext} disabled={!canNext()} style={{ flex: 1, padding: "14px 24px", background: canNext() ? "#111" : "#E5E5E5", color: canNext() ? "#F3C11B" : "#AAA", border: "none", borderRadius: "12px", fontSize: "14px", fontWeight: 700, cursor: canNext() ? "pointer" : "not-allowed", fontFamily: "'Plus Jakarta Sans', sans-serif", boxShadow: canNext() ? "0 2px 8px rgba(0,0,0,0.12)" : "none" }}>Lanjut {"\u2192"}</button>
               </div>
             )}
           </>
@@ -427,13 +536,13 @@ export default function App() {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
               <div>
                 <h2 style={{ fontSize: "22px", fontWeight: 800, margin: "0", color: "#111", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Konten Pitching Deck</h2>
-                <p style={{ color: "#888", fontSize: "13px", margin: "4px 0 0 0" }}>{data.namaPerusahaan} \u2014 {JASA_OPTIONS.find((j) => j.id === data.jasa)?.title}</p>
+                <p style={{ color: "#888", fontSize: "13px", margin: "4px 0 0 0" }}>{data.namaPerusahaan} {"\u2014"} {JASA_OPTIONS.find((j) => j.id === data.jasa)?.title}{files.length > 0 ? ` \u2022 ${files.length} file dianalisis` : ""}</p>
               </div>
-              <button onClick={() => handleCopy(result, setCopied)} style={{ padding: "10px 20px", background: copied ? "#111" : "#fff", color: copied ? "#F3C11B" : "#333", border: "1px solid #DDD", borderRadius: "10px", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", transition: "all 0.2s" }}>{copied ? "\u2713 Copied!" : "Copy All"}</button>
+              <button onClick={() => handleCopy(result, setCopied)} style={{ padding: "10px 20px", background: copied ? "#111" : "#fff", color: copied ? "#F3C11B" : "#333", border: "1px solid #DDD", borderRadius: "10px", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{copied ? "\u2713 Copied!" : "Copy All"}</button>
             </div>
             <div style={{ background: "#fff", borderRadius: "16px", padding: "28px", border: "1px solid #EBEBEB", fontSize: "14px", lineHeight: "1.8", whiteSpace: "pre-wrap", color: "#222", maxHeight: "70vh", overflow: "auto", boxShadow: "0 1px 6px rgba(0,0,0,0.04)" }}>{result}</div>
             <div style={{ marginTop: "16px", padding: "16px 18px", background: "rgba(243,193,27,0.06)", borderRadius: "12px", border: "1px solid rgba(243,193,27,0.15)", fontSize: "13px", color: "#666", lineHeight: "1.6" }}>
-              <strong style={{ color: "#111" }}>Next step:</strong> Copy konten di atas \u2192 Buka Google Slides template BDB \u2192 Paste per slide. Atau paste ke Claude dan minta "buatkan PPTX dari konten ini dengan design system BDB".
+              <strong style={{ color: "#111" }}>Next step:</strong> Copy konten {"\u2192"} Buka Google Slides template BDB {"\u2192"} Paste per slide. Atau paste ke Claude dan minta "buatkan PPTX dari konten ini dengan design system BDB".
             </div>
           </div>
         )}
