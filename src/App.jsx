@@ -171,6 +171,7 @@ export default function App() {
     tujuanWebsite: "", targetAudience: "", fiturKhusus: "", referensiWebsite: "", timeline: "",
     urlExisting: "", masalahWebsite: "", yangDipertahankan: "", yangDiubah: "",
     adaCompanyProfile: false, adaLogo: false, adaFoto: false, adaKonten: false, catatanTambahan: "",
+    brandPrimary: "#F5A623", brandSecondary: "#F3C11B",
   };
   const [data, setData] = useState(initData);
   const [files, setFiles] = useState([]);
@@ -420,6 +421,31 @@ export default function App() {
           {renderInput("Lokasi", "lokasi", "Jakarta, Indonesia", { optional: true })}
           {renderInput("Deskripsi Bisnis", "deskripsiBisnis", "Jelaskan singkat tentang bisnis client...", { multiline: true, optional: true })}
           {renderInput("Pembeda dari kompetitor", "pembeda", "Keunggulan unik, sertifikasi, pengalaman", { optional: true })}
+          <div style={{ marginBottom: "18px" }}>
+            <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#222", marginBottom: "7px", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              Warna Brand <span style={{ color: "#AAA", fontWeight: 400, marginLeft: "6px", fontSize: "12px" }}>slide menyesuaikan warna brand client</span>
+            </label>
+            <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div style={{ position: "relative", width: "40px", height: "40px", borderRadius: "10px", overflow: "hidden", border: "2px solid #E2E2E2", cursor: "pointer", flexShrink: 0 }}>
+                  <input type="color" value={data.brandPrimary} onChange={(e) => update("brandPrimary", e.target.value)} style={{ position: "absolute", inset: "-8px", width: "calc(100% + 16px)", height: "calc(100% + 16px)", cursor: "pointer", border: "none" }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: "12px", fontWeight: 600, color: "#444", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Primary</div>
+                  <input type="text" value={data.brandPrimary} onChange={(e) => update("brandPrimary", e.target.value)} placeholder="#F5A623" style={{ ...inputStyle, width: "100px", padding: "6px 8px", fontSize: "12px", fontFamily: "monospace" }} />
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div style={{ position: "relative", width: "40px", height: "40px", borderRadius: "10px", overflow: "hidden", border: "2px solid #E2E2E2", cursor: "pointer", flexShrink: 0 }}>
+                  <input type="color" value={data.brandSecondary} onChange={(e) => update("brandSecondary", e.target.value)} style={{ position: "absolute", inset: "-8px", width: "calc(100% + 16px)", height: "calc(100% + 16px)", cursor: "pointer", border: "none" }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: "12px", fontWeight: 600, color: "#444", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Secondary</div>
+                  <input type="text" value={data.brandSecondary} onChange={(e) => update("brandSecondary", e.target.value)} placeholder="#F3C11B" style={{ ...inputStyle, width: "100px", padding: "6px 8px", fontSize: "12px", fontFamily: "monospace" }} />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>);
 
       case "detail":
@@ -473,7 +499,7 @@ export default function App() {
           <div style={{ background: "#fff", borderRadius: "16px", padding: "24px", marginBottom: "20px", border: "1px solid #EBEBEB", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
             <div style={{ display: "inline-block", padding: "4px 12px", borderRadius: "20px", background: "#111", color: "#F3C11B", fontSize: "12px", fontWeight: 700, marginBottom: "16px" }}>{jLabel}</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-              {[["Perusahaan", data.namaPerusahaan], ["Industri", data.industri], ["Target Market", data.targetMarket], ["Timeline", data.timeline], ["Tujuan", data.tujuanWebsite], ["Fitur", data.fiturKhusus]].filter(([, v]) => v).map(([l, v]) => (
+              {[["Perusahaan", data.namaPerusahaan], ["Industri", data.industri], ["Target Market", data.targetMarket], ["Timeline", data.timeline], ["Tujuan", data.tujuanWebsite], ["Fitur", data.fiturKhusus], ["Warna Brand", data.brandPrimary + " / " + data.brandSecondary]].filter(([, v]) => v).map(([l, v]) => (
                 <div key={l}>
                   <div style={{ fontSize: "11px", fontWeight: 700, color: "#AAA", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "4px" }}>{l}</div>
                   <div style={{ fontSize: "14px", color: "#222", fontWeight: 500 }}>{v}</div>
