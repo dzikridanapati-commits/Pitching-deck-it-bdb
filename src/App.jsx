@@ -59,80 +59,143 @@ function buildPromptText(data, fileCount) {
 
   if (data.jasa === "website_baru") {
     slideStructure = `STRUKTUR SLIDE:
-1. Cover - "Corporate Website Strategy" + "${data.namaPerusahaan}"
-2. Understanding the Business - Industri, core business, target market
-3. Corporate Positioning Framework - Current vs target positioning + statement
-4. Why This Website Matters - "Why now" + risiko jika tidak dilakukan
-5. Referensi Website - 3 referensi relevan dengan alasan
-6. Website Structure (Sitemap) - Proposed sitemap
-7. Homepage Strategy - Section by section
-8. Technical Strategy - Scope + fitur: ${data.fiturKhusus || "responsive, contact form, SEO"}
-9. Data & Asset Requirement - Yang harus disiapkan + solusi jika belum lengkap
-10. Timeline & Risk - Phase + risk mitigation
-11. Closing - "Let's Kick Start Your Achievement!"`;
-    extraInstructions = `- Riset industri ${data.industri} dan kompetitornya
-- Cari 3 website referensi relevan
-- Buat positioning statement spesifik untuk ${data.namaPerusahaan}`;
+## SLIDE 1: Cover
+- Judul: "Corporate Website Strategy"
+- Nama perusahaan: "${data.namaPerusahaan}"
+
+## SLIDE 2: Understanding the Business
+- Analisis MENDALAM industri ${data.industri}: ekosistem, lanskap kompetitif, tren digital di industri ini
+- JANGAN hanya copy deskripsi bisnis dari input. Elaborasi menjadi 3-4 poin strategis tentang: karakteristik industri, tantangan digital, peluang pasar, dan posisi client di ekosistem
+- Target Market: breakdown siapa saja, apa pain points mereka, bagaimana mereka mencari provider/partner secara digital
+
+## SLIDE 3: Corporate Positioning Framework
+- Current Perception: analisis bagaimana pasar saat ini melihat ${data.namaPerusahaan} (berdasarkan konteks industri dan bisnis, BUKAN copy dari input user)
+- Target Positioning: posisi ideal yang realistis dan spesifik untuk industri ${data.industri}
+- Positioning Statement: kalimat kuat 1-2 baris yang menyatukan value proposition, differensiator, dan target audience
+
+## SLIDE 4: Why This Website Matters
+- "Why Now?": 4-5 alasan STRATEGIS dan SPESIFIK untuk industri ${data.industri}, bukan generik. Hubungkan dengan tren industri, perilaku buyer, dan kebutuhan digital saat ini
+- "Risiko jika tidak dilakukan": 3-4 risiko KONKRET yang relevan dengan konteks bisnis client, bukan generik seperti "kurang profesional"
+
+## SLIDE 5: Referensi Website
+- Rekomendasikan 3 website NYATA dari industri serupa atau adjacent yang bisa dijadikan benchmark
+- Setiap referensi harus punya URL valid dan 2-3 alasan SPESIFIK kenapa dijadikan referensi (struktur, UX, konten strategy, teknologi)
+${data.referensiWebsite ? `- User menyebutkan referensi: ${data.referensiWebsite}. Analisis referensi ini DAN tambahkan rekomendasi lain jika perlu` : "- Carikan referensi terbaik dari industri serupa"}
+
+## SLIDE 6: Website Structure (Sitemap)
+- Buat sitemap yang STRATEGIS, bukan generik. Sesuaikan halaman dengan kebutuhan spesifik industri ${data.industri}
+- Jelaskan ALASAN di balik setiap halaman: apa fungsi strategisnya
+- Maksimal 6-8 halaman utama
+
+## SLIDE 7: Homepage Strategy
+- Breakdown section-by-section homepage dengan ALASAN strategis per section
+- Setiap section harus punya: nama section, deskripsi konten, dan TUJUAN strategis (membangun trust, showcase kapabilitas, generate inquiry, dll)
+- Urutkan berdasarkan user journey dan conversion funnel
+
+## SLIDE 8: Technical Strategy
+- Technical Scope yang RELEVAN untuk industri ${data.industri} dan skala bisnis client
+- Fitur khusus: ${data.fiturKhusus || "sesuaikan dengan kebutuhan industri dan target market"}
+- Jelaskan KENAPA setiap fitur penting untuk mencapai tujuan website
+
+## SLIDE 9: Data & Asset Requirement
+- "Client harus menyiapkan": list SPESIFIK berdasarkan jenis konten yang dibutuhkan untuk industri ${data.industri}
+- "Jika Data Belum Lengkap": solusi PRAKTIS dan timeline pengumpulan aset
+
+## SLIDE 10: Timeline & Risk
+- Timeline: breakdown per fase yang realistis untuk scope project ini (${data.timeline || "1-2 bulan"})
+- Risk: identifikasi risiko SPESIFIK untuk project ini (bukan generik), dan berikan mitigasi yang actionable
+
+## SLIDE 11: Closing
+- "Let's Kick Start Your Achievement!"`;
+    extraInstructions = `INSTRUKSI ANALISIS TAMBAHAN:
+- Riset dan pahami industri ${data.industri}: siapa pemain utama, bagaimana digital presence mereka, apa standar industri
+- Carikan 3 website referensi NYATA yang relevan dengan industri ${data.industri}
+- Buat positioning statement yang UNIK dan SPESIFIK untuk ${data.namaPerusahaan}, bukan template generik
+- Pastikan SEMUA poin di setiap slide saling KONSISTEN dan mendukung narasi keseluruhan deck`;
   } else if (data.jasa === "revamp") {
     slideStructure = `STRUKTUR SLIDE:
-1. Cover - "Website Revamp Strategy" + "${data.namaPerusahaan}"
-2. Understanding the Business
-3. Current Website Audit - Kelebihan & kekurangan
-4. Why Revamp Now - Alasan strategis + risiko
-5. Competitive Benchmark - 3 referensi
-6. Revamp Goals & KPI
-7. Proposed Changes - ${data.yangDiubah || "design, structure, content, technical"}
-8. New Sitemap
-9. Homepage Redesign Strategy
-10. Technical Upgrade Plan - Fitur: ${data.fiturKhusus || "responsive, SEO, performance"}
-11. Data & Asset Requirement
-12. Timeline & Risk
-13. Closing`;
-    extraInstructions = `- Analisis website existing: ${data.urlExisting || "[belum tersedia]"}
-- Pertahankan: ${data.yangDipertahankan || "perlu ditentukan"}
-- Ubah: ${data.yangDiubah || "perlu dianalisis"}`;
+## SLIDE 1: Cover - "Website Revamp Strategy" + "${data.namaPerusahaan}"
+## SLIDE 2: Understanding the Business - Analisis mendalam industri, bukan copy paste input
+## SLIDE 3: Current Website Audit - Analisis kelebihan & kekurangan berdasarkan standar industri ${data.industri}. ${data.urlExisting ? `Analisis website: ${data.urlExisting}` : ""}
+## SLIDE 4: Why Revamp Now - Alasan STRATEGIS spesifik, bukan generik
+## SLIDE 5: Competitive Benchmark - 3 referensi website NYATA dari industri serupa
+## SLIDE 6: Revamp Goals & KPI - Target TERUKUR dan realistis
+## SLIDE 7: Proposed Changes - ${data.yangDiubah || "design, structure, content, technical"} — jelaskan KENAPA setiap perubahan penting
+## SLIDE 8: New Sitemap - Struktur baru yang strategis
+## SLIDE 9: Homepage Redesign Strategy - Section by section dengan alasan strategis
+## SLIDE 10: Technical Upgrade Plan - Fitur: ${data.fiturKhusus || "responsive, SEO, performance"} — dengan justifikasi
+## SLIDE 11: Data & Asset Requirement
+## SLIDE 12: Timeline & Risk - Realistis untuk scope revamp
+## SLIDE 13: Closing`;
+    extraInstructions = `INSTRUKSI ANALISIS TAMBAHAN:
+- ${data.urlExisting ? `Analisis mendalam website existing ${data.urlExisting}: apa yang sudah baik, apa yang harus diubah, dan kenapa` : "Berikan framework audit website yang relevan"}
+- Pertahankan: ${data.yangDipertahankan || "identifikasi sendiri berdasarkan analisis"}
+- Ubah: ${data.yangDiubah || "identifikasi berdasarkan gap analysis dengan standar industri"}
+- Bandingkan dengan best practices industri ${data.industri}`;
   } else {
     slideStructure = `STRUKTUR SLIDE:
-1. Cover - "Website Maintenance & Support" + "${data.namaPerusahaan}"
-2. Understanding Current Setup
-3. Why Ongoing Maintenance Matters
-4. Scope of Services
-5. Service Level Tiers - Basic / Standard / Premium
-6. Reporting & Communication
-7. Timeline & Onboarding
-8. Risk & Mitigation
-9. Closing`;
-    extraInstructions = `- Buat 3 tier paket dengan value proposition jelas
-- SLA realistis per tier`;
+## SLIDE 1: Cover - "Website Maintenance & Support" + "${data.namaPerusahaan}"
+## SLIDE 2: Understanding Current Setup - Analisis kebutuhan maintenance untuk industri ${data.industri}
+## SLIDE 3: Why Ongoing Maintenance Matters - Data dan insight kenapa maintenance kritikal
+## SLIDE 4: Scope of Services - Detail layanan SPESIFIK, bukan generik
+## SLIDE 5: Service Level Tiers - 3 tier dengan harga value proposition yang jelas dan diferensiasi tajam
+## SLIDE 6: Reporting & Communication - Framework komunikasi yang profesional
+## SLIDE 7: Timeline & Onboarding - Proses onboarding yang terstruktur
+## SLIDE 8: Risk & Mitigation - Risiko spesifik untuk maintenance dan mitigasinya
+## SLIDE 9: Closing`;
+    extraInstructions = `INSTRUKSI ANALISIS TAMBAHAN:
+- Buat 3 tier paket (Basic/Standard/Premium) dengan scope yang jelas dan value proposition berbeda
+- SLA realistis per tier berdasarkan standar industri
+- Include metrics dan KPI untuk setiap tier`;
   }
 
-  return `Kamu adalah strategist senior dari Banana Digital Boost.
-Buatkan KONTEN LENGKAP untuk pitching deck ${jasaLabel} dalam Bahasa Indonesia.
+  return `PERAN: Kamu adalah SENIOR DIGITAL STRATEGIST dari Banana Digital Boost, sebuah digital agency yang menangani corporate website strategy. Kamu memiliki pengalaman 10+ tahun di digital strategy dan memahami berbagai industri.
 
-KONTEKS CLIENT:
+TUGAS: Buatkan KONTEN STRATEGIS MENDALAM untuk pitching deck "${jasaLabel}" dalam Bahasa Indonesia.
+
+ATURAN PENTING:
+1. JANGAN copy-paste jawaban dari input client. Input client adalah BAHAN MENTAH yang harus kamu ANALISIS, ELABORASI, dan TRANSFORMASI menjadi insight strategis
+2. Setiap poin harus menunjukkan KEDALAMAN ANALISIS — bukan sekadar rephrasing input
+3. KONSISTENSI: pastikan narasi dari slide 1 sampai terakhir saling mendukung dan tidak kontradiktif
+4. Gunakan bahasa PROFESIONAL tapi tidak bertele-tele. Setiap kalimat harus punya value
+5. Jika ada file yang diupload, PRIORITASKAN informasi dari file tersebut dan CROSS-CHECK dengan input form
+6. Berikan insight yang menunjukkan kamu MEMAHAMI industri client, bukan template generik
+7. Setiap slide harus punya BENANG MERAH yang menghubungkan ke tujuan utama website
+
+INPUT DATA CLIENT (bahan mentah — JANGAN copy langsung, ANALISIS dan ELABORASI):
 - Nama Perusahaan: ${data.namaPerusahaan}
 - Industri: ${data.industri}
-- Target Market: ${data.targetMarket || "belum ditentukan"}
+- Target Market: ${data.targetMarket || "belum ditentukan — analisis berdasarkan industri"}
 - Lokasi: ${data.lokasi || "Indonesia"}
-- Deskripsi Bisnis: ${data.deskripsiBisnis || "belum tersedia"}
-- Pembeda kompetitor: ${data.pembeda || "belum diidentifikasi"}
+- Deskripsi Bisnis: ${data.deskripsiBisnis || "belum tersedia — riset berdasarkan industri"}
+- Pembeda kompetitor: ${data.pembeda || "belum diidentifikasi — analisis berdasarkan konteks"}
 - Masalah utama: ${data.masalahUtama || "butuh kehadiran digital profesional"}
 - Tujuan website: ${data.tujuanWebsite || "meningkatkan kredibilitas dan generate leads"}
 - Target audience: ${data.targetAudience || data.targetMarket || "B2B dan B2C"}
-- Fitur khusus: ${data.fiturKhusus || "belum ditentukan"}
-- Referensi: ${data.referensiWebsite || "belum ada, tolong carikan"}
+- Fitur khusus: ${data.fiturKhusus || "belum ditentukan — rekomendasikan berdasarkan industri"}
+- Referensi: ${data.referensiWebsite || "belum ada — carikan referensi website terbaik dari industri serupa"}
 - Timeline: ${data.timeline || "1-2 bulan"}
 ${data.jasa === "revamp" ? `- URL existing: ${data.urlExisting || "belum tersedia"}` : ""}
-${data.catatanTambahan ? `- Catatan: ${data.catatanTambahan}` : ""}
+${data.catatanTambahan ? `- Catatan tambahan: ${data.catatanTambahan}` : ""}
 
-ASET: Company profile: ${data.adaCompanyProfile ? "Ada" : "Tidak"} | Logo: ${data.adaLogo ? "Ada" : "Tidak"} | Foto: ${data.adaFoto ? "Ada" : "Tidak"} | Konten: ${data.adaKonten ? "Ada" : "Tidak"}
+ASET TERSEDIA: Company profile: ${data.adaCompanyProfile ? "Ada" : "Tidak"} | Logo: ${data.adaLogo ? "Ada" : "Tidak"} | Foto: ${data.adaFoto ? "Ada" : "Tidak"} | Konten: ${data.adaKonten ? "Ada" : "Tidak"}
 
-${fileCount > 0 ? `\nFILE YANG DIUPLOAD: ${fileCount} file telah dilampirkan. ANALISIS dan GUNAKAN informasi dari file-file tersebut untuk memperkaya konten deck. Ekstrak info bisnis, layanan, portofolio, dan data relevan lainnya.\n` : ""}
+${fileCount > 0 ? `FILE YANG DIUPLOAD: ${fileCount} file telah dilampirkan.
+INSTRUKSI FILE:
+- BACA dan ANALISIS setiap file secara menyeluruh
+- EXTRACT semua informasi relevan: profil perusahaan, layanan, portofolio, client list, sertifikasi, visi misi, struktur organisasi
+- GUNAKAN data dari file sebagai SUMBER UTAMA — lebih akurat daripada input form
+- Jika ada kontradiksi antara file dan input form, PRIORITASKAN informasi dari file
+- CROSS-REFERENCE informasi antar file untuk insight yang lebih kaya
+` : "CATATAN: Tidak ada file yang diupload. Gunakan input form dan pengetahuanmu tentang industri untuk menghasilkan konten strategis yang relevan.\n"}
 
 ${slideStructure}
 
-OUTPUT: Tulis konten LENGKAP per slide dengan header "## SLIDE [nomor]: [judul]".
-Bahasa profesional & strategis. Gunakan informasi dari file yang diupload.
+FORMAT OUTPUT:
+- Tulis konten per slide dengan header "## SLIDE [nomor]: [judul]"
+- Setiap poin harus SUBSTANTIF (bukan bullet generik)
+- Untuk referensi website, gunakan URL yang NYATA dan VALID
+- Setiap slide minimal 4-6 poin strategis yang saling terhubung
 
 ${extraInstructions}`;
 }
@@ -245,7 +308,7 @@ export default function App() {
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
-        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 8000, messages }),
+        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 12000, messages }),
       });
       const rd = await response.json();
       if (rd.content) { setResult(rd.content.map((item) => (item.type === "text" ? item.text : "")).filter(Boolean).join("\n")); }
