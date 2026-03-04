@@ -193,15 +193,31 @@ export default function App() {
     return true;
   };
 
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per file
+  const MAX_TOTAL_SIZE = 25 * 1024 * 1024; // 25MB total
+
   const handleFileAdd = (categoryId, e) => {
-    const newFiles = Array.from(e.target.files).map((file) => ({
-      id: Date.now() + Math.random(),
-      category: categoryId,
-      file: file,
-      name: file.name,
-      size: file.size,
-    }));
-    setFiles((prev) => [...prev, ...newFiles]);
+    const incoming = Array.from(e.target.files);
+    const currentTotal = files.reduce((sum, f) => sum + f.size, 0);
+    const validFiles = [];
+    const errors = [];
+
+    for (const file of incoming) {
+      if (file.size > MAX_FILE_SIZE) {
+        errors.push(`${file.name} terlalu besar (${formatSize(file.size)}). Max 10MB per file.`);
+        continue;
+      }
+      const newTotal = currentTotal + validFiles.reduce((s, f) => s + f.size, 0) + file.size;
+      if (newTotal > MAX_TOTAL_SIZE) {
+        errors.push(`Total file melebihi 25MB. ${file.name} tidak ditambahkan.`);
+        continue;
+      }
+      validFiles.push({ id: Date.now() + Math.random(), category: categoryId, file, name: file.name, size: file.size });
+    }
+
+    if (errors.length > 0) setError(errors.join(" "));
+    else setError("");
+    if (validFiles.length > 0) setFiles((prev) => [...prev, ...validFiles]);
     e.target.value = "";
   };
 
@@ -365,6 +381,12 @@ export default function App() {
           {files.length > 0 && (
             <div style={{ marginTop: "16px", padding: "12px 16px", background: "rgba(243,193,27,0.06)", borderRadius: "10px", border: "1px solid rgba(243,193,27,0.15)", fontSize: "13px", color: "#666" }}>
               <strong style={{ color: "#111" }}>{files.length} file</strong> siap dianalisis oleh AI
+              <span style={{ marginLeft: "8px", color: "#AAA" }}>({formatSize(files.reduce((s, f) => s + f.size, 0))} / 25MB)</span>
+            </div>
+          )}
+          {error && currentStepData.id === "upload" && (
+            <div style={{ marginTop: "10px", padding: "12px 16px", background: "#FFF5F5", borderRadius: "10px", border: "1px solid #FED7D7", fontSize: "13px", color: "#C53030" }}>
+              {error}
             </div>
           )}
           {files.length === 0 && (
