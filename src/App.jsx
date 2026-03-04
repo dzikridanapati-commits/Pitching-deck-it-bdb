@@ -52,7 +52,7 @@ function isPdfFile(file) {
   return file.type === "application/pdf" || /\.pdf$/i.test(file.name);
 }
 
-async function buildMessages(data, files) {
+function buildPromptText(data, fileCount) {
   const jasaLabel = JASA_OPTIONS.find((j) => j.id === data.jasa)?.title || data.jasa;
   let slideStructure = "";
   let extraInstructions = "";
@@ -106,7 +106,7 @@ async function buildMessages(data, files) {
 - SLA realistis per tier`;
   }
 
-  const textPrompt = `Kamu adalah strategist senior dari Banana Digital Boost.
+  return `Kamu adalah strategist senior dari Banana Digital Boost.
 Buatkan KONTEN LENGKAP untuk pitching deck ${jasaLabel} dalam Bahasa Indonesia.
 
 KONTEKS CLIENT:
@@ -127,7 +127,7 @@ ${data.catatanTambahan ? `- Catatan: ${data.catatanTambahan}` : ""}
 
 ASET: Company profile: ${data.adaCompanyProfile ? "Ada" : "Tidak"} | Logo: ${data.adaLogo ? "Ada" : "Tidak"} | Foto: ${data.adaFoto ? "Ada" : "Tidak"} | Konten: ${data.adaKonten ? "Ada" : "Tidak"}
 
-${files.length > 0 ? `\nFILE YANG DIUPLOAD: ${files.length} file telah dilampirkan. ANALISIS dan GUNAKAN informasi dari file-file tersebut untuk memperkaya konten deck. Ekstrak info bisnis, layanan, portofolio, dan data relevan lainnya.\n` : ""}
+${fileCount > 0 ? `\nFILE YANG DIUPLOAD: ${fileCount} file telah dilampirkan. ANALISIS dan GUNAKAN informasi dari file-file tersebut untuk memperkaya konten deck. Ekstrak info bisnis, layanan, portofolio, dan data relevan lainnya.\n` : ""}
 
 ${slideStructure}
 
@@ -135,7 +135,10 @@ OUTPUT: Tulis konten LENGKAP per slide dengan header "## SLIDE [nomor]: [judul]"
 Bahasa profesional & strategis. Gunakan informasi dari file yang diupload.
 
 ${extraInstructions}`;
+}
 
+async function buildMessages(data, files) {
+  const textPrompt = buildPromptText(data, files.length);
   const contentParts = [];
 
   for (const fileObj of files) {
@@ -534,7 +537,7 @@ export default function App() {
               style={{ flex: 1, padding: "16px", background: generating ? "#555" : "#111", color: "#F3C11B", border: "none", borderRadius: "12px", fontSize: "15px", fontWeight: 700, cursor: generating ? "not-allowed" : "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", boxShadow: generating ? "none" : "0 2px 8px rgba(0,0,0,0.15)" }}>
               {generating ? (files.length > 0 ? "\u23f3 Menganalisis file & generating..." : "\u23f3 Generating...") : "\u26a1 Generate Deck"}
             </button>
-            <button onClick={() => handleCopy("prompt-copied", setCopiedPrompt)}
+            <button onClick={() => handleCopy(buildPromptText(data, files.length), setCopiedPrompt)}
               style={{ padding: "16px 20px", background: copiedPrompt ? "#111" : "#fff", color: copiedPrompt ? "#F3C11B" : "#333", border: "1px solid #DDD", borderRadius: "12px", fontSize: "14px", fontWeight: 600, cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", whiteSpace: "nowrap" }}>
               {copiedPrompt ? "\u2713 Copied!" : "Copy Prompt"}
             </button>
