@@ -1,20 +1,18 @@
-import { useState, useEffect, useRef } from "react";
-
-const API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY || "";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 const STEPS = [
   { id: "jasa", label: "Jenis Jasa" },
   { id: "client", label: "Info Client" },
   { id: "detail", label: "Detail Project" },
   { id: "revamp", label: "Website Existing" },
-  { id: "aset", label: "Aset Tersedia" },
+  { id: "aset", label: "Aset & Catatan" },
   { id: "review", label: "Review & Generate" },
 ];
 
 const JASA_OPTIONS = [
-  { id: "website_baru", title: "Pembuatan Website Baru", desc: "Client belum punya website atau ingin website dari nol", icon: "\U0001f310" },
-  { id: "revamp", title: "Revamp / Redesign Website", desc: "Client sudah punya website tapi ingin diperbaiki", icon: "\U0001f504" },
-  { id: "maintenance", title: "Maintenance & Retainer", desc: "Client butuh support ongoing untuk website yang sudah ada", icon: "\U0001f6e0\ufe0f" },
+  { id: "website_baru", title: "Pembuatan Website Baru", desc: "Client belum punya website atau ingin website dari nol", icon: "\u{1F310}" },
+  { id: "revamp", title: "Revamp / Redesign Website", desc: "Client sudah punya website tapi ingin diperbaiki", icon: "\u{1F504}" },
+  { id: "maintenance", title: "Maintenance & Retainer", desc: "Client butuh support ongoing untuk website yang sudah ada", icon: "\u{1F6E0}\uFE0F" },
 ];
 
 function buildPrompt(data) {
@@ -102,51 +100,17 @@ OUTPUT: Tulis konten LENGKAP per slide dengan header "## SLIDE [nomor]: [judul]"
 ${extraInstructions}`;
 }
 
-const StepIndicator = ({ steps, current }) => (
-  <div style={{ display: "flex", gap: "2px", marginBottom: "32px", padding: "0 4px" }}>
-    {steps.map((step, i) => (
-      <div key={step.id} style={{ flex: 1, textAlign: "center" }}>
-        <div style={{ height: "3px", background: i === current ? "#F3C11B" : i < current ? "#000" : "rgba(0,0,0,0.08)", borderRadius: "2px", transition: "all 0.3s ease" }} />
-        <span style={{ fontSize: "10px", fontWeight: i === current ? 700 : 500, color: i <= current ? "#000" : "rgba(0,0,0,0.3)", marginTop: "6px", display: "block", letterSpacing: "0.5px", textTransform: "uppercase", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{step.label}</span>
-      </div>
-    ))}
-  </div>
-);
-
-const InputField = ({ label, value, onChange, placeholder, multiline, optional }) => (
-  <div style={{ marginBottom: "16px" }}>
-    <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#000", marginBottom: "6px", letterSpacing: "0.3px", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-      {label}{optional && <span style={{ color: "rgba(0,0,0,0.35)", fontWeight: 400, marginLeft: "6px", fontSize: "11px" }}>opsional</span>}
-    </label>
-    {multiline ? (
-      <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={3}
-        style={{ width: "100%", padding: "10px 12px", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: "8px", fontSize: "13px", fontFamily: "'Plus Jakarta Sans', sans-serif", resize: "vertical", outline: "none", background: "#FAFAFA", boxSizing: "border-box" }}
-        onFocus={(e) => (e.target.style.borderColor = "#F3C11B")} onBlur={(e) => (e.target.style.borderColor = "rgba(0,0,0,0.12)")} />
-    ) : (
-      <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-        style={{ width: "100%", padding: "10px 12px", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: "8px", fontSize: "13px", fontFamily: "'Plus Jakarta Sans', sans-serif", outline: "none", background: "#FAFAFA", boxSizing: "border-box" }}
-        onFocus={(e) => (e.target.style.borderColor = "#F3C11B")} onBlur={(e) => (e.target.style.borderColor = "rgba(0,0,0,0.12)")} />
-    )}
-  </div>
-);
-
-const CheckboxField = ({ label, checked, onChange }) => (
-  <label style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 12px", borderRadius: "8px", cursor: "pointer", background: checked ? "rgba(243,193,27,0.08)" : "#FAFAFA", border: checked ? "1.5px solid #F3C11B" : "1.5px solid rgba(0,0,0,0.08)", transition: "all 0.2s", marginBottom: "8px", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-    <div style={{ width: "18px", height: "18px", borderRadius: "4px", border: checked ? "2px solid #F3C11B" : "2px solid rgba(0,0,0,0.2)", background: checked ? "#F3C11B" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-      {checked && <span style={{ color: "#000", fontSize: "12px", fontWeight: 700 }}>{"\u2713"}</span>}
-    </div>
-    <span style={{ fontSize: "13px", color: "#000" }}>{label}</span>
-  </label>
-);
+const API_KEY = typeof import.meta !== "undefined" && import.meta.env ? (import.meta.env.VITE_ANTHROPIC_API_KEY || "") : "";
 
 export default function App() {
   const [step, setStep] = useState(0);
-  const [data, setData] = useState({
+  const initData = {
     jasa: "", namaPerusahaan: "", industri: "", targetMarket: "", lokasi: "", deskripsiBisnis: "", pembeda: "", masalahUtama: "",
     tujuanWebsite: "", targetAudience: "", fiturKhusus: "", referensiWebsite: "", timeline: "",
     urlExisting: "", masalahWebsite: "", yangDipertahankan: "", yangDiubah: "",
     adaCompanyProfile: false, adaLogo: false, adaFoto: false, adaKonten: false, catatanTambahan: "",
-  });
+  };
+  const [data, setData] = useState(initData);
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState("");
   const [error, setError] = useState("");
@@ -154,7 +118,14 @@ export default function App() {
   const [copiedPrompt, setCopiedPrompt] = useState(false);
   const resultRef = useRef(null);
 
-  const update = (key, val) => setData((d) => ({ ...d, [key]: val }));
+  const update = useCallback((key, val) => {
+    setData((prev) => ({ ...prev, [key]: val }));
+  }, []);
+
+  const toggleCheck = useCallback((key) => {
+    setData((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
+
   const visibleSteps = STEPS.filter((s) => s.id !== "revamp" || data.jasa === "revamp");
   const currentStepData = visibleSteps[step];
 
@@ -165,20 +136,18 @@ export default function App() {
   };
 
   const handleGenerate = async () => {
-    if (!API_KEY) { setError("API Key belum diset. Tambahkan VITE_ANTHROPIC_API_KEY di file .env"); return; }
+    if (!API_KEY) { setError("API Key belum diset. Tambahkan VITE_ANTHROPIC_API_KEY di environment variables."); return; }
     setGenerating(true); setError(""); setResult("");
-    const prompt = buildPrompt(data);
     try {
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
-        body: JSON.stringify({ model: "claude-sonnet-4-5-20250514", max_tokens: 8000, messages: [{ role: "user", content: prompt }] }),
+        body: JSON.stringify({ model: "claude-sonnet-4-5-20250514", max_tokens: 8000, messages: [{ role: "user", content: buildPrompt(data) }] }),
       });
       const rd = await response.json();
-      if (rd.content) {
-        setResult(rd.content.map((item) => (item.type === "text" ? item.text : "")).filter(Boolean).join("\n"));
-      } else if (rd.error) { setError(rd.error.message || "Terjadi error dari API");
-      } else { setError("Response tidak valid"); }
+      if (rd.content) { setResult(rd.content.map((item) => (item.type === "text" ? item.text : "")).filter(Boolean).join("\n")); }
+      else if (rd.error) { setError(rd.error.message || "Terjadi error dari API"); }
+      else { setError("Response tidak valid"); }
     } catch (err) { setError("Gagal menghubungi API: " + err.message); }
     setGenerating(false);
   };
@@ -187,113 +156,213 @@ export default function App() {
   const goNext = () => { if (step < visibleSteps.length - 1) setStep(step + 1); };
   const goBack = () => { if (step > 0) setStep(step - 1); };
   useEffect(() => { if (result && resultRef.current) resultRef.current.scrollIntoView({ behavior: "smooth" }); }, [result]);
+  const resetAll = () => { setResult(""); setStep(0); setError(""); setData(initData); };
 
-  const resetAll = () => {
-    setResult(""); setStep(0); setError("");
-    setData({ jasa: "", namaPerusahaan: "", industri: "", targetMarket: "", lokasi: "", deskripsiBisnis: "", pembeda: "", masalahUtama: "", tujuanWebsite: "", targetAudience: "", fiturKhusus: "", referensiWebsite: "", timeline: "", urlExisting: "", masalahWebsite: "", yangDipertahankan: "", yangDiubah: "", adaCompanyProfile: false, adaLogo: false, adaFoto: false, adaKonten: false, catatanTambahan: "" });
+  const inputStyle = {
+    width: "100%", padding: "12px 14px", border: "1px solid #E2E2E2", borderRadius: "10px",
+    fontSize: "14px", fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", outline: "none",
+    background: "#fff", boxSizing: "border-box", transition: "border-color 0.2s, box-shadow 0.2s",
+    color: "#111",
+  };
+
+  const renderInput = (label, key, placeholder, opts = {}) => (
+    <div style={{ marginBottom: "18px" }}>
+      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#222", marginBottom: "7px", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+        {label}
+        {opts.optional && <span style={{ color: "#AAA", fontWeight: 400, marginLeft: "6px", fontSize: "12px" }}>opsional</span>}
+      </label>
+      {opts.multiline ? (
+        <textarea value={data[key]} onChange={(e) => update(key, e.target.value)} placeholder={placeholder} rows={3}
+          style={{ ...inputStyle, resize: "vertical", minHeight: "80px" }}
+          onFocus={(e) => { e.target.style.borderColor = "#F3C11B"; e.target.style.boxShadow = "0 0 0 3px rgba(243,193,27,0.12)"; }}
+          onBlur={(e) => { e.target.style.borderColor = "#E2E2E2"; e.target.style.boxShadow = "none"; }} />
+      ) : (
+        <input type="text" value={data[key]} onChange={(e) => update(key, e.target.value)} placeholder={placeholder}
+          style={inputStyle}
+          onFocus={(e) => { e.target.style.borderColor = "#F3C11B"; e.target.style.boxShadow = "0 0 0 3px rgba(243,193,27,0.12)"; }}
+          onBlur={(e) => { e.target.style.borderColor = "#E2E2E2"; e.target.style.boxShadow = "none"; }} />
+      )}
+    </div>
+  );
+
+  const renderCheck = (label, key) => {
+    const isChecked = data[key];
+    return (
+      <div
+        onClick={() => toggleCheck(key)}
+        role="checkbox"
+        aria-checked={isChecked}
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggleCheck(key); }}}
+        style={{
+          display: "flex", alignItems: "center", gap: "12px", padding: "14px 16px", borderRadius: "10px",
+          cursor: "pointer", userSelect: "none",
+          background: isChecked ? "rgba(243,193,27,0.06)" : "#fff",
+          border: isChecked ? "1.5px solid #F3C11B" : "1px solid #E8E8E8",
+          transition: "all 0.15s ease", marginBottom: "10px",
+        }}
+      >
+        <div style={{
+          width: "20px", height: "20px", borderRadius: "6px", flexShrink: 0,
+          border: isChecked ? "none" : "2px solid #CCC",
+          background: isChecked ? "#F3C11B" : "transparent",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          transition: "all 0.15s ease",
+        }}>
+          {isChecked && <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+        </div>
+        <span style={{ fontSize: "14px", color: "#222", fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: isChecked ? 600 : 400 }}>{label}</span>
+      </div>
+    );
   };
 
   const renderStep = () => {
     switch (currentStepData.id) {
       case "jasa":
         return (<div>
-          <h2 style={{ fontSize: "20px", fontWeight: 700, margin: "0 0 4px 0", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Pilih Jenis Jasa</h2>
-          <p style={{ color: "rgba(0,0,0,0.5)", fontSize: "13px", margin: "0 0 20px 0" }}>Apa yang dibutuhkan client?</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {JASA_OPTIONS.map((opt) => (
-              <button key={opt.id} onClick={() => update("jasa", opt.id)}
-                style={{ display: "flex", alignItems: "center", gap: "14px", padding: "16px", border: data.jasa === opt.id ? "2px solid #000" : "1.5px solid rgba(0,0,0,0.1)", borderRadius: "12px", background: data.jasa === opt.id ? "rgba(243,193,27,0.06)" : "#fff", cursor: "pointer", textAlign: "left", transition: "all 0.2s", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                <span style={{ fontSize: "28px" }}>{opt.icon}</span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: "14px", color: "#000" }}>{opt.title}</div>
-                  <div style={{ fontSize: "12px", color: "rgba(0,0,0,0.5)", marginTop: "2px" }}>{opt.desc}</div>
-                </div>
-                {data.jasa === opt.id && <div style={{ marginLeft: "auto", width: "22px", height: "22px", borderRadius: "50%", background: "#F3C11B", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><span style={{ color: "#000", fontSize: "13px", fontWeight: 700 }}>{"\u2713"}</span></div>}
-              </button>
-            ))}
+          <div style={{ marginBottom: "24px" }}>
+            <h2 style={{ fontSize: "22px", fontWeight: 800, margin: "0 0 6px 0", color: "#111", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Pilih Jenis Jasa</h2>
+            <p style={{ color: "#888", fontSize: "14px", margin: 0, lineHeight: 1.5 }}>Apa yang dibutuhkan client?</p>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {JASA_OPTIONS.map((opt) => {
+              const sel = data.jasa === opt.id;
+              return (
+                <button key={opt.id} onClick={() => update("jasa", opt.id)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: "16px", padding: "18px 20px",
+                    border: sel ? "2px solid #111" : "1px solid #E8E8E8",
+                    borderRadius: "14px", background: sel ? "#FAFAF5" : "#fff",
+                    cursor: "pointer", textAlign: "left", transition: "all 0.2s",
+                    fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    boxShadow: sel ? "0 2px 12px rgba(0,0,0,0.06)" : "0 1px 3px rgba(0,0,0,0.03)",
+                  }}>
+                  <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: sel ? "#F3C11B" : "#F5F5F5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", flexShrink: 0, transition: "all 0.2s" }}>{opt.icon}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: "15px", color: "#111" }}>{opt.title}</div>
+                    <div style={{ fontSize: "13px", color: "#888", marginTop: "3px", lineHeight: 1.4 }}>{opt.desc}</div>
+                  </div>
+                  {sel && <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: "#111", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="#F3C11B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>}
+                </button>
+              );
+            })}
           </div>
         </div>);
+
       case "client":
         return (<div>
-          <h2 style={{ fontSize: "20px", fontWeight: 700, margin: "0 0 4px 0", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Informasi Client</h2>
-          <p style={{ color: "rgba(0,0,0,0.5)", fontSize: "13px", margin: "0 0 20px 0" }}>Isi sebisanya — yang kosong akan diisi otomatis oleh AI</p>
-          <InputField label="Nama Perusahaan" value={data.namaPerusahaan} onChange={(v) => update("namaPerusahaan", v)} placeholder="PT Contoh Maju Bersama" />
-          <InputField label="Industri / Bidang" value={data.industri} onChange={(v) => update("industri", v)} placeholder="contoh: Pertahanan, F&B, Logistik" />
-          <InputField label="Target Market" value={data.targetMarket} onChange={(v) => update("targetMarket", v)} placeholder="contoh: Kemhan, TNI, B2B enterprise" optional />
-          <InputField label="Lokasi" value={data.lokasi} onChange={(v) => update("lokasi", v)} placeholder="Jakarta, Indonesia" optional />
-          <InputField label="Deskripsi Bisnis" value={data.deskripsiBisnis} onChange={(v) => update("deskripsiBisnis", v)} placeholder="Jelaskan singkat tentang bisnis client..." multiline optional />
-          <InputField label="Pembeda dari kompetitor" value={data.pembeda} onChange={(v) => update("pembeda", v)} placeholder="Keunggulan unik, sertifikasi, pengalaman" optional />
+          <div style={{ marginBottom: "24px" }}>
+            <h2 style={{ fontSize: "22px", fontWeight: 800, margin: "0 0 6px 0", color: "#111", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Informasi Client</h2>
+            <p style={{ color: "#888", fontSize: "14px", margin: 0 }}>Isi sebisanya \u2014 yang kosong akan diisi otomatis oleh AI</p>
+          </div>
+          {renderInput("Nama Perusahaan", "namaPerusahaan", "PT Contoh Maju Bersama")}
+          {renderInput("Industri / Bidang", "industri", "contoh: Pertahanan, F&B, Logistik")}
+          {renderInput("Target Market", "targetMarket", "contoh: Kemhan, TNI, B2B enterprise", { optional: true })}
+          {renderInput("Lokasi", "lokasi", "Jakarta, Indonesia", { optional: true })}
+          {renderInput("Deskripsi Bisnis", "deskripsiBisnis", "Jelaskan singkat tentang bisnis client...", { multiline: true, optional: true })}
+          {renderInput("Pembeda dari kompetitor", "pembeda", "Keunggulan unik, sertifikasi, pengalaman", { optional: true })}
         </div>);
+
       case "detail":
         return (<div>
-          <h2 style={{ fontSize: "20px", fontWeight: 700, margin: "0 0 4px 0", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Detail Project</h2>
-          <p style={{ color: "rgba(0,0,0,0.5)", fontSize: "13px", margin: "0 0 20px 0" }}>Informasi tentang kebutuhan website</p>
-          <InputField label="Masalah / Kebutuhan Utama" value={data.masalahUtama} onChange={(v) => update("masalahUtama", v)} placeholder="contoh: Belum punya representasi digital profesional" multiline />
-          <InputField label="Tujuan Utama Website" value={data.tujuanWebsite} onChange={(v) => update("tujuanWebsite", v)} placeholder="contoh: Meningkatkan kredibilitas, generate leads" optional />
-          <InputField label="Target Audience Website" value={data.targetAudience} onChange={(v) => update("targetAudience", v)} placeholder="contoh: Partner B2B internasional, investor" optional />
-          <InputField label="Fitur Khusus" value={data.fiturKhusus} onChange={(v) => update("fiturKhusus", v)} placeholder="contoh: Multi-language, portfolio, inquiry form" optional />
-          <InputField label="Referensi Website" value={data.referensiWebsite} onChange={(v) => update("referensiWebsite", v)} placeholder="URL referensi, pisahkan dengan koma" optional />
-          <InputField label="Timeline" value={data.timeline} onChange={(v) => update("timeline", v)} placeholder="contoh: 1-2 bulan" optional />
+          <div style={{ marginBottom: "24px" }}>
+            <h2 style={{ fontSize: "22px", fontWeight: 800, margin: "0 0 6px 0", color: "#111", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Detail Project</h2>
+            <p style={{ color: "#888", fontSize: "14px", margin: 0 }}>Informasi tentang kebutuhan website</p>
+          </div>
+          {renderInput("Masalah / Kebutuhan Utama", "masalahUtama", "contoh: Belum punya representasi digital profesional", { multiline: true })}
+          {renderInput("Tujuan Utama Website", "tujuanWebsite", "contoh: Meningkatkan kredibilitas, generate leads", { optional: true })}
+          {renderInput("Target Audience Website", "targetAudience", "contoh: Partner B2B internasional, investor", { optional: true })}
+          {renderInput("Fitur Khusus", "fiturKhusus", "contoh: Multi-language, portfolio, inquiry form", { optional: true })}
+          {renderInput("Referensi Website", "referensiWebsite", "URL referensi, pisahkan dengan koma", { optional: true })}
+          {renderInput("Timeline", "timeline", "contoh: 1-2 bulan", { optional: true })}
         </div>);
+
       case "revamp":
         return (<div>
-          <h2 style={{ fontSize: "20px", fontWeight: 700, margin: "0 0 4px 0", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Website Existing</h2>
-          <p style={{ color: "rgba(0,0,0,0.5)", fontSize: "13px", margin: "0 0 20px 0" }}>Informasi website yang akan di-revamp</p>
-          <InputField label="URL Website Existing" value={data.urlExisting} onChange={(v) => update("urlExisting", v)} placeholder="https://www.contoh.com" />
-          <InputField label="Masalah Utama Website Saat Ini" value={data.masalahWebsite} onChange={(v) => update("masalahWebsite", v)} placeholder="contoh: Design outdated, tidak responsive" multiline />
-          <InputField label="Yang Ingin Dipertahankan" value={data.yangDipertahankan} onChange={(v) => update("yangDipertahankan", v)} placeholder="contoh: Konten blog, domain, brand colors" optional />
-          <InputField label="Yang Ingin Diubah" value={data.yangDiubah} onChange={(v) => update("yangDiubah", v)} placeholder="contoh: Layout, navigasi, visual design" optional />
+          <div style={{ marginBottom: "24px" }}>
+            <h2 style={{ fontSize: "22px", fontWeight: 800, margin: "0 0 6px 0", color: "#111", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Website Existing</h2>
+            <p style={{ color: "#888", fontSize: "14px", margin: 0 }}>Informasi website yang akan di-revamp</p>
+          </div>
+          {renderInput("URL Website Existing", "urlExisting", "https://www.contoh.com")}
+          {renderInput("Masalah Utama Website Saat Ini", "masalahWebsite", "contoh: Design outdated, tidak responsive", { multiline: true })}
+          {renderInput("Yang Ingin Dipertahankan", "yangDipertahankan", "contoh: Konten blog, domain, brand colors", { optional: true })}
+          {renderInput("Yang Ingin Diubah", "yangDiubah", "contoh: Layout, navigasi, visual design", { optional: true })}
         </div>);
+
       case "aset":
         return (<div>
-          <h2 style={{ fontSize: "20px", fontWeight: 700, margin: "0 0 4px 0", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Aset yang Tersedia</h2>
-          <p style={{ color: "rgba(0,0,0,0.5)", fontSize: "13px", margin: "0 0 20px 0" }}>Centang aset yang sudah dimiliki client</p>
-          <CheckboxField label="Company Profile (PDF/PPTX)" checked={data.adaCompanyProfile} onChange={() => update("adaCompanyProfile", !data.adaCompanyProfile)} />
-          <CheckboxField label="Logo HD" checked={data.adaLogo} onChange={() => update("adaLogo", !data.adaLogo)} />
-          <CheckboxField label="Foto-foto (fasilitas, produk, tim)" checked={data.adaFoto} onChange={() => update("adaFoto", !data.adaFoto)} />
-          <CheckboxField label="Konten / Copy Existing" checked={data.adaKonten} onChange={() => update("adaKonten", !data.adaKonten)} />
-          <div style={{ marginTop: "16px" }}>
-            <InputField label="Catatan Tambahan" value={data.catatanTambahan} onChange={(v) => update("catatanTambahan", v)} placeholder="Informasi lain yang relevan..." multiline optional />
+          <div style={{ marginBottom: "24px" }}>
+            <h2 style={{ fontSize: "22px", fontWeight: 800, margin: "0 0 6px 0", color: "#111", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Aset yang Tersedia</h2>
+            <p style={{ color: "#888", fontSize: "14px", margin: 0 }}>Centang aset yang sudah dimiliki client</p>
+          </div>
+          {renderCheck("Company Profile (PDF/PPTX)", "adaCompanyProfile")}
+          {renderCheck("Logo HD", "adaLogo")}
+          {renderCheck("Foto-foto (fasilitas, produk, tim)", "adaFoto")}
+          {renderCheck("Konten / Copy Existing", "adaKonten")}
+          <div style={{ marginTop: "20px" }}>
+            {renderInput("Catatan Tambahan", "catatanTambahan", "Informasi lain yang relevan...", { multiline: true, optional: true })}
           </div>
         </div>);
+
       case "review":
         const jLabel = JASA_OPTIONS.find((j) => j.id === data.jasa)?.title || "-";
         return (<div>
-          <h2 style={{ fontSize: "20px", fontWeight: 700, margin: "0 0 4px 0", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Review & Generate</h2>
-          <p style={{ color: "rgba(0,0,0,0.5)", fontSize: "13px", margin: "0 0 20px 0" }}>Cek ringkasan sebelum generate</p>
-          <div style={{ background: "#FAFAFA", borderRadius: "12px", padding: "20px", marginBottom: "20px", border: "1px solid rgba(0,0,0,0.06)" }}>
-            <div style={{ marginBottom: "16px" }}>
-              <div style={{ fontSize: "10px", fontWeight: 700, color: "rgba(0,0,0,0.4)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>Jenis Jasa</div>
-              <div style={{ fontSize: "14px", fontWeight: 600 }}>{jLabel}</div>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+          <div style={{ marginBottom: "24px" }}>
+            <h2 style={{ fontSize: "22px", fontWeight: 800, margin: "0 0 6px 0", color: "#111", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Review & Generate</h2>
+            <p style={{ color: "#888", fontSize: "14px", margin: 0 }}>Pastikan informasi sudah benar sebelum generate</p>
+          </div>
+          <div style={{ background: "#fff", borderRadius: "16px", padding: "24px", marginBottom: "20px", border: "1px solid #EBEBEB", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+            <div style={{ display: "inline-block", padding: "4px 12px", borderRadius: "20px", background: "#111", color: "#F3C11B", fontSize: "12px", fontWeight: 700, marginBottom: "16px", letterSpacing: "0.3px" }}>{jLabel}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
               {[["Perusahaan", data.namaPerusahaan], ["Industri", data.industri], ["Target Market", data.targetMarket], ["Timeline", data.timeline], ["Tujuan", data.tujuanWebsite], ["Fitur", data.fiturKhusus]].filter(([, v]) => v).map(([l, v]) => (
-                <div key={l}><div style={{ fontSize: "10px", fontWeight: 700, color: "rgba(0,0,0,0.4)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "2px" }}>{l}</div><div style={{ fontSize: "13px" }}>{v}</div></div>
+                <div key={l}>
+                  <div style={{ fontSize: "11px", fontWeight: 700, color: "#AAA", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "4px" }}>{l}</div>
+                  <div style={{ fontSize: "14px", color: "#222", fontWeight: 500 }}>{v}</div>
+                </div>
               ))}
             </div>
-            {data.jasa === "revamp" && data.urlExisting && <div style={{ marginTop: "12px" }}><div style={{ fontSize: "10px", fontWeight: 700, color: "rgba(0,0,0,0.4)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "2px" }}>Website Existing</div><div style={{ fontSize: "13px" }}>{data.urlExisting}</div></div>}
-            <div style={{ marginTop: "12px" }}>
-              <div style={{ fontSize: "10px", fontWeight: 700, color: "rgba(0,0,0,0.4)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>Aset Tersedia</div>
-              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", fontSize: "12px" }}>
+            {data.jasa === "revamp" && data.urlExisting && <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #F0F0F0" }}>
+              <div style={{ fontSize: "11px", fontWeight: 700, color: "#AAA", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "4px" }}>Website Existing</div>
+              <div style={{ fontSize: "14px", color: "#222", fontWeight: 500 }}>{data.urlExisting}</div>
+            </div>}
+            <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #F0F0F0" }}>
+              <div style={{ fontSize: "11px", fontWeight: 700, color: "#AAA", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "8px" }}>Aset</div>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                 {[["Compro", data.adaCompanyProfile], ["Logo", data.adaLogo], ["Foto", data.adaFoto], ["Konten", data.adaKonten]].map(([l, h]) => (
-                  <span key={l} style={{ padding: "3px 10px", borderRadius: "20px", background: h ? "rgba(243,193,27,0.15)" : "rgba(0,0,0,0.05)", color: h ? "#000" : "rgba(0,0,0,0.35)", fontWeight: h ? 600 : 400 }}>{h ? "\u2713" : "\u2717"} {l}</span>
+                  <span key={l} style={{ padding: "5px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: 600, background: h ? "rgba(243,193,27,0.12)" : "#F5F5F5", color: h ? "#111" : "#BBB", border: h ? "1px solid rgba(243,193,27,0.3)" : "1px solid #EEE" }}>
+                    {h ? "\u2713" : "\u2717"} {l}
+                  </span>
                 ))}
               </div>
             </div>
           </div>
           <div style={{ display: "flex", gap: "10px" }}>
             <button onClick={handleGenerate} disabled={generating}
-              style={{ flex: 1, padding: "14px", background: generating ? "#666" : "#000", color: generating ? "#ccc" : "#F3C11B", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: 700, cursor: generating ? "not-allowed" : "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "0.5px" }}>
-              {generating ? "\u23f3 Generating konten deck..." : "\u26a1 Generate Pitching Deck"}
+              style={{
+                flex: 1, padding: "16px", background: generating ? "#555" : "#111", color: "#F3C11B",
+                border: "none", borderRadius: "12px", fontSize: "15px", fontWeight: 700,
+                cursor: generating ? "not-allowed" : "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif",
+                letterSpacing: "0.3px", transition: "all 0.2s",
+                boxShadow: generating ? "none" : "0 2px 8px rgba(0,0,0,0.15)",
+              }}>
+              {generating ? "\u23F3 Generating..." : "\u26A1 Generate Deck"}
             </button>
             <button onClick={() => handleCopy(buildPrompt(data), setCopiedPrompt)}
-              style={{ padding: "14px 18px", background: "#fff", color: "#000", border: "1.5px solid rgba(0,0,0,0.15)", borderRadius: "10px", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", whiteSpace: "nowrap" }}>
-              {copiedPrompt ? "\u2713 Copied!" : "\U0001f4cb Copy Prompt"}
+              style={{
+                padding: "16px 20px", background: copiedPrompt ? "#111" : "#fff",
+                color: copiedPrompt ? "#F3C11B" : "#333",
+                border: "1px solid #DDD", borderRadius: "12px", fontSize: "14px", fontWeight: 600,
+                cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", whiteSpace: "nowrap",
+                transition: "all 0.2s",
+              }}>
+              {copiedPrompt ? "\u2713 Copied!" : "Copy Prompt"}
             </button>
           </div>
-          {error && <div style={{ marginTop: "16px", padding: "14px", background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: "10px", color: "#991B1B", fontSize: "13px" }}>
+          {error && <div style={{ marginTop: "16px", padding: "16px", background: "#FFF5F5", border: "1px solid #FED7D7", borderRadius: "12px", color: "#C53030", fontSize: "13px", lineHeight: 1.5 }}>
             <strong>Error:</strong> {error}
-            <div style={{ marginTop: "8px", color: "#666", fontSize: "12px" }}>{"\U0001f4a1"} Tip: Klik "Copy Prompt" lalu paste langsung ke chat Claude sebagai alternatif.</div>
+            <div style={{ marginTop: "8px", color: "#888", fontSize: "12px" }}>Tip: Klik "Copy Prompt" lalu paste langsung ke chat Claude sebagai alternatif.</div>
           </div>}
         </div>);
       default: return null;
@@ -301,27 +370,55 @@ export default function App() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F5F5F0", fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#F7F7F5", fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-      <div style={{ background: "#000", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "#F3C11B", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "16px", color: "#000" }}>B</div>
+
+      {/* HEADER */}
+      <div style={{ background: "#111", padding: "0 24px", height: "60px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "2px solid #F3C11B" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+          <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#F3C11B", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: "18px", color: "#111", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>D</div>
           <div>
-            <div style={{ color: "#fff", fontSize: "14px", fontWeight: 700, letterSpacing: "0.3px" }}>BDB Deck Agent</div>
-            <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "10px", letterSpacing: "0.5px" }}>BANANA DIGITAL BOOST</div>
+            <div style={{ color: "#fff", fontSize: "16px", fontWeight: 800, letterSpacing: "-0.3px" }}>Deck IT Strategy</div>
+            <div style={{ color: "rgba(255,255,255,0.35)", fontSize: "10px", fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase" }}>Banana Digital Boost</div>
           </div>
         </div>
-        {result && <button onClick={resetAll} style={{ padding: "8px 16px", background: "rgba(255,255,255,0.1)", color: "#F3C11B", border: "1px solid rgba(243,193,27,0.3)", borderRadius: "8px", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>+ New Project</button>}
+        {result && <button onClick={resetAll} style={{ padding: "8px 18px", background: "transparent", color: "#F3C11B", border: "1px solid rgba(243,193,27,0.4)", borderRadius: "8px", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", transition: "all 0.2s" }}>+ New Project</button>}
       </div>
-      <div style={{ maxWidth: "640px", margin: "0 auto", padding: "24px 20px" }}>
+
+      {/* STEP BAR */}
+      {!result && (
+        <div style={{ background: "#fff", borderBottom: "1px solid #EBEBEB", padding: "16px 24px 0" }}>
+          <div style={{ maxWidth: "600px", margin: "0 auto", display: "flex", gap: "4px" }}>
+            {visibleSteps.map((s, i) => (
+              <div key={s.id} style={{ flex: 1, textAlign: "center", paddingBottom: "12px" }}>
+                <div style={{ height: "3px", borderRadius: "2px", marginBottom: "8px", background: i === step ? "#F3C11B" : i < step ? "#111" : "#EBEBEB", transition: "all 0.3s ease" }} />
+                <span style={{ fontSize: "11px", fontWeight: i === step ? 700 : 500, color: i === step ? "#111" : i < step ? "#666" : "#CCC", letterSpacing: "0.3px", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{s.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* MAIN CONTENT */}
+      <div style={{ maxWidth: "600px", margin: "0 auto", padding: "28px 20px 40px" }}>
         {!result ? (
           <>
-            <StepIndicator steps={visibleSteps} current={step} />
-            {renderStep()}
+            <div style={{ background: "#fff", borderRadius: "20px", padding: "28px 24px", border: "1px solid #EBEBEB", boxShadow: "0 1px 6px rgba(0,0,0,0.04)", marginBottom: "20px" }}>
+              {renderStep()}
+            </div>
             {currentStepData.id !== "review" && (
-              <div style={{ display: "flex", gap: "10px", marginTop: "24px" }}>
-                {step > 0 && <button onClick={goBack} style={{ padding: "12px 24px", background: "#fff", color: "#000", border: "1.5px solid rgba(0,0,0,0.12)", borderRadius: "10px", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{"\u2190"} Kembali</button>}
-                <button onClick={goNext} disabled={!canNext()} style={{ flex: 1, padding: "12px 24px", background: canNext() ? "#000" : "rgba(0,0,0,0.1)", color: canNext() ? "#F3C11B" : "rgba(0,0,0,0.3)", border: "none", borderRadius: "10px", fontSize: "13px", fontWeight: 700, cursor: canNext() ? "pointer" : "not-allowed", fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "0.3px" }}>Lanjut {"\u2192"}</button>
+              <div style={{ display: "flex", gap: "10px" }}>
+                {step > 0 && <button onClick={goBack} style={{ padding: "14px 24px", background: "#fff", color: "#333", border: "1px solid #DDD", borderRadius: "12px", fontSize: "14px", fontWeight: 600, cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>\u2190 Kembali</button>}
+                <button onClick={goNext} disabled={!canNext()} style={{
+                  flex: 1, padding: "14px 24px",
+                  background: canNext() ? "#111" : "#E5E5E5",
+                  color: canNext() ? "#F3C11B" : "#AAA",
+                  border: "none", borderRadius: "12px", fontSize: "14px", fontWeight: 700,
+                  cursor: canNext() ? "pointer" : "not-allowed",
+                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                  boxShadow: canNext() ? "0 2px 8px rgba(0,0,0,0.12)" : "none",
+                  transition: "all 0.2s",
+                }}>Lanjut \u2192</button>
               </div>
             )}
           </>
@@ -329,14 +426,14 @@ export default function App() {
           <div ref={resultRef}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
               <div>
-                <h2 style={{ fontSize: "20px", fontWeight: 700, margin: "0", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Konten Pitching Deck</h2>
-                <p style={{ color: "rgba(0,0,0,0.5)", fontSize: "12px", margin: "4px 0 0 0" }}>{data.namaPerusahaan} {"\u2014"} {JASA_OPTIONS.find((j) => j.id === data.jasa)?.title}</p>
+                <h2 style={{ fontSize: "22px", fontWeight: 800, margin: "0", color: "#111", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Konten Pitching Deck</h2>
+                <p style={{ color: "#888", fontSize: "13px", margin: "4px 0 0 0" }}>{data.namaPerusahaan} \u2014 {JASA_OPTIONS.find((j) => j.id === data.jasa)?.title}</p>
               </div>
-              <button onClick={() => handleCopy(result, setCopied)} style={{ padding: "10px 18px", background: copied ? "#000" : "#fff", color: copied ? "#F3C11B" : "#000", border: "1.5px solid rgba(0,0,0,0.15)", borderRadius: "10px", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{copied ? "\u2713 Copied!" : "\U0001f4cb Copy All"}</button>
+              <button onClick={() => handleCopy(result, setCopied)} style={{ padding: "10px 20px", background: copied ? "#111" : "#fff", color: copied ? "#F3C11B" : "#333", border: "1px solid #DDD", borderRadius: "10px", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "'Plus Jakarta Sans', sans-serif", transition: "all 0.2s" }}>{copied ? "\u2713 Copied!" : "Copy All"}</button>
             </div>
-            <div style={{ background: "#fff", borderRadius: "12px", padding: "24px", border: "1px solid rgba(0,0,0,0.06)", fontSize: "13px", lineHeight: "1.7", whiteSpace: "pre-wrap", color: "#1a1a1a", maxHeight: "70vh", overflow: "auto" }}>{result}</div>
-            <div style={{ marginTop: "16px", padding: "14px", background: "rgba(243,193,27,0.08)", borderRadius: "10px", border: "1px solid rgba(243,193,27,0.2)", fontSize: "12px", color: "rgba(0,0,0,0.6)", lineHeight: "1.6" }}>
-              <strong style={{ color: "#000" }}>{"\U0001f4a1"} Next step:</strong> Copy konten di atas {"\u2192"} Buka Google Slides template BDB {"\u2192"} Paste konten ke masing-masing slide. Atau paste ke Claude chat dan minta "buatkan PPTX dari konten ini dengan design system BDB" untuk generate file langsung.
+            <div style={{ background: "#fff", borderRadius: "16px", padding: "28px", border: "1px solid #EBEBEB", fontSize: "14px", lineHeight: "1.8", whiteSpace: "pre-wrap", color: "#222", maxHeight: "70vh", overflow: "auto", boxShadow: "0 1px 6px rgba(0,0,0,0.04)" }}>{result}</div>
+            <div style={{ marginTop: "16px", padding: "16px 18px", background: "rgba(243,193,27,0.06)", borderRadius: "12px", border: "1px solid rgba(243,193,27,0.15)", fontSize: "13px", color: "#666", lineHeight: "1.6" }}>
+              <strong style={{ color: "#111" }}>Next step:</strong> Copy konten di atas \u2192 Buka Google Slides template BDB \u2192 Paste per slide. Atau paste ke Claude dan minta "buatkan PPTX dari konten ini dengan design system BDB".
             </div>
           </div>
         )}
